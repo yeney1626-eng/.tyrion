@@ -1169,18 +1169,21 @@ function updateJCPreview(){
   function sub(c){ return 'font-size:10px;font-weight:600;color:'+(c||C.text2)+';margin-top:2px'; }
 
   // Running AHT — current WB work-day entries up to chosen date only (no rest days) + current unsaved form input
-  // Recompute prodS per-interval (only intervals with JC>0) to handle old saved entries correctly
+  // Recompute prodS per-interval (all clocked-in time, offline excluded)
   var wbWorkEntries=wbSavedUpTo.filter(function(e){return !e.isRestDay;});
   var wbProdSTotal=0, wbJCForAHT=0;
   wbWorkEntries.forEach(function(e){
     wbJCForAHT+=e.totalJC||0;
     IVS.forEach(function(iv){
       var d=(e.iv&&e.iv[iv])||{totalS:0,offlineS:0,jc:0};
-      if((d.jc||0)>0) wbProdSTotal+=Math.max(0,(d.totalS||0)-(d.offlineS||0));
+      wbProdSTotal+=Math.max(0,(d.totalS||0)-(d.offlineS||0));
     });
   });
-  var runningJCForAHT=wbJCForAHT+(isRestDayChecked()?0:totalJC);
-  var runningProdSForAHT=wbProdSTotal+(isRestDayChecked()?0:totalProdS);
+  // When today's entry is already saved, it is included in wbWorkEntries — do not add form values again.
+  // Also skip unsaved form contribution when no JC has been entered yet (avoids default minutes skewing AHT).
+  var hasUnsavedJC=!savedTodayEntry&&!isRestDayChecked()&&totalJC>0;
+  var runningJCForAHT=hasUnsavedJC?(wbJCForAHT+totalJC):wbJCForAHT;
+  var runningProdSForAHT=hasUnsavedJC?(wbProdSTotal+totalProdS):wbProdSTotal;
   var weekRunningAHT=runningJCForAHT>0?runningProdSForAHT/runningJCForAHT:0;
   var ahtOk=weekRunningAHT>0&&weekRunningAHT<=ahtTarget;
 
@@ -1616,7 +1619,7 @@ function renderEntries(){
   // Summary metrics — exclude rest days from JC stats
   var workRows=rows.filter(function(e){return !e.isRestDay;});
   var restCount=rows.filter(function(e){return e.isRestDay;}).length;
-  // Recompute prodS per-interval (only intervals with JC>0)
+  // Recompute prodS per-interval (all clocked-in time, offline excluded)
   var totalJC=workRows.reduce(function(s,e){return s+(e.totalJC||0);},0);
   var totalProd=0;
   workRows.forEach(function(e){
