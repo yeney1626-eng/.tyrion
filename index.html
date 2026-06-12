@@ -817,7 +817,9 @@ function calcEntry(e){
     var jc=d.jc||0;
     totalJC+=jc;
     totalOfflineS+=(d.offlineS||0);
-    if(jc>0) totalProdS+=Math.max(0,(d.totalS||0)-(d.offlineS||0));
+    // Include all clocked-in minutes (total minus offline) regardless of JC,
+    // so offline tags or zero-JC intervals still count toward productive time.
+    totalProdS+=Math.max(0,(d.totalS||0)-(d.offlineS||0));
   });
   e.totalJC=totalJC;
   e.totalProdS=totalProdS;
@@ -1054,7 +1056,7 @@ function updateJCPreview(){
     var tMin=parseFloat((document.getElementById('ivt_'+k)||{}).value)||0;
     var jc=parseInt((document.getElementById('ivj_'+k)||{}).value)||0;
     totalOfflineMin+=oMin; totalJC+=jc; totalMinEntered+=tMin;
-    if(jc>0) totalProdS+=Math.max(0,(tMin-oMin)*60);
+    totalProdS+=Math.max(0,(tMin-oMin)*60);
   });
 
   var date=(document.getElementById('inp-date')||{}).value||today(); if(!date) date=today();
@@ -1620,7 +1622,7 @@ function renderEntries(){
   workRows.forEach(function(e){
     IVS.forEach(function(iv){
       var d=(e.iv&&e.iv[iv])||{totalS:0,offlineS:0,jc:0};
-      if((d.jc||0)>0) totalProd+=Math.max(0,(d.totalS||0)-(d.offlineS||0));
+      totalProd+=Math.max(0,(d.totalS||0)-(d.offlineS||0));
     });
   });
   var avgAHT=totalJC>0?parseFloat((totalProd/totalJC).toFixed(2)):0;
@@ -1820,7 +1822,7 @@ function exportXLSX(){
   var workRows=rows.filter(function(e){return !e.isRestDay;});
   var totalJC=workRows.reduce(function(s,e){return s+(e.totalJC||0);},0);
   var totalProd=0;
-  workRows.forEach(function(e){ IVS.forEach(function(iv){ var d=(e.iv&&e.iv[iv])||{}; if((d.jc||0)>0) totalProd+=Math.max(0,(d.totalS||0)-(d.offlineS||0)); }); });
+  workRows.forEach(function(e){ IVS.forEach(function(iv){ var d=(e.iv&&e.iv[iv])||{}; totalProd+=Math.max(0,(d.totalS||0)-(d.offlineS||0)); }); });
   var avgAHT=totalJC>0?(totalProd/totalJC).toFixed(2):0;
   var met=workRows.filter(function(e){return e.status==='Met';}).length;
   var plDays=rows.filter(function(e){var lt=e.leaveType||'none'; return lt==='pl-full'?1:lt==='pl-half'?0.5:0;}).reduce(function(s,e){var lt=e.leaveType||'none'; return s+(lt==='pl-full'?1:lt==='pl-half'?0.5:0);},0);
