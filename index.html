@@ -950,22 +950,59 @@ function setLeaveType(type){
       else btn.classList.add('active-ul');
     }
   });
+  // ── Half-day leave: rename intervals and block 2nd half of shift ──
+  var isHalfLeave = (type==='pl-half'||type==='ul-half');
+  // Rename titles: '1st Break' → 'Break', 'Lunch' → 'EOS' for half day
+  var ivRenames = {'1st_Break': isHalfLeave?'Break':'1st Break', 'Lunch': isHalfLeave?'EOS':'Lunch'};
+  Object.keys(ivRenames).forEach(function(k){
+    var card=document.getElementById('ivt_'+k);
+    if(!card) return;
+    var titleEl=card.closest('.iv-card')&&card.closest('.iv-card').querySelector('.iv-card-title');
+    if(titleEl){
+      var origIv=k.replace(/_/g,' ');
+      var def=IV_DEF_MIN[origIv]||0;
+      titleEl.innerHTML='⏱ '+ivRenames[k]+' <span style="font-size:10px;color:var(--text2);font-weight:400">(default: '+def+' min)</span>';
+    }
+  });
+  // Block/unblock 2nd Break and EOS cards
+  ['2nd_Break','EOS'].forEach(function(k){
+    var tEl=document.getElementById('ivt_'+k);
+    var oEl=document.getElementById('ivo_'+k);
+    var jEl=document.getElementById('ivj_'+k);
+    var cardEl=tEl&&tEl.closest('.iv-card');
+    if(!cardEl) return;
+    if(isHalfLeave){
+      // Zero out and disable
+      if(tEl){ tEl.value=0; tEl.disabled=true; }
+      if(oEl){ oEl.value=0; oEl.disabled=true; }
+      if(jEl){ jEl.value=0; jEl.disabled=true; }
+      cardEl.style.opacity='0.35';
+      cardEl.style.pointerEvents='none';
+    } else {
+      // Restore
+      var origIv=k.replace(/_/g,' ');
+      if(tEl){ tEl.value=IV_DEF_MIN[origIv]||0; tEl.disabled=false; }
+      if(oEl){ oEl.value=0; oEl.disabled=false; }
+      if(jEl){ jEl.value=0; jEl.disabled=false; }
+      cardEl.style.opacity='';
+      cardEl.style.pointerEvents='';
+    }
+  });
   // Show notice
   var notice=document.getElementById('leave-notice');
   if(type==='none'){
     notice.style.display='none';
   } else {
-    var isHalf=type.endsWith('half');
     var isPL=type.startsWith('pl');
     var icon=isPL?'🏖️':'😈';
     var label=isPL?'Planned Leave':'Unplanned Leave';
     var color=isPL?'#0288D1':'#E53935';
     var bg=isPL?'rgba(3,169,244,.1)':'rgba(229,57,53,.1)';
     var border=isPL?'rgba(3,169,244,.4)':'rgba(229,57,53,.4)';
-    var deduct=isHalf?0.5:1;
+    var deduct=isHalfLeave?0.5:1;
     notice.style.display='block';
     notice.style.background=bg; notice.style.border='1px solid '+border; notice.style.color=color;
-    notice.innerHTML=icon+' <strong>'+label+(isHalf?' – Half Day':' – Full Day')+'</strong>. Deducts <strong>'+deduct+' productive day'+(deduct===1?'':'s')+'</strong> from the 5-day weekly count. JC target adjusts proportionally.';
+    notice.innerHTML=icon+' <strong>'+label+(isHalfLeave?' – Half Day':' – Full Day')+'</strong>. Deducts <strong>'+deduct+' productive day'+(deduct===1?'':'s')+'</strong> from the 5-day weekly count. JC target adjusts proportionally.'+(isHalfLeave?' 2nd Break and EOS are blocked.':'');
   }
   updateJCPreview();
 }
@@ -987,12 +1024,18 @@ function clearForm(){
   setLeaveType('none');
   IVS.forEach(function(iv){
     var k=iv.replace(/\s+/g,'_');
-    document.getElementById('ivt_'+k).value=IV_DEF_MIN[iv]||0;
-    document.getElementById('ivo_'+k).value=0;
-    document.getElementById('ivj_'+k).value=0;
-    document.getElementById('ivop1_'+k).value='';
-    document.getElementById('ivop2_'+k).value='';
-    document.getElementById('ivop3_'+k).value='';
+    var tEl=document.getElementById('ivt_'+k);
+    var oEl=document.getElementById('ivo_'+k);
+    var jEl=document.getElementById('ivj_'+k);
+    var p1=document.getElementById('ivop1_'+k);
+    var p2=document.getElementById('ivop2_'+k);
+    var p3=document.getElementById('ivop3_'+k);
+    if(tEl) tEl.value=IV_DEF_MIN[iv]||0;
+    if(oEl) oEl.value=0;
+    if(jEl) jEl.value=0;
+    if(p1) p1.value='';
+    if(p2) p2.value='';
+    if(p3) p3.value='';
   });
   // Reset button and notice
   var btn=document.getElementById('btn-add-entry');
@@ -1011,40 +1054,61 @@ function updateJCPreview(){
   var wb=wbEl.value;
   if(!wb){previewEl.style.display='none';return;}
 
-  // ── Full-day off modes: Rest Day / PL Full / UL Full ──
-  var isFullDayOff = isRestDayChecked() || currentLeaveType==='pl-full' || currentLeaveType==='ul-full';
-  if(isFullDayOff){
+  // ── Full-day-off check: Rest Day, PL Full, UL Full all get a simple icon card ──
+  // Running AHT is hidden for all three. Only Rest Day skips weekly target deduction.
+  var date0=(document.getElementById('inp-date')||{}).value||today();
+  var savedRestEntry=S.entries.find(function(e){ return e.date===date0 && e.isRestDay; });
+  var savedFullLeaveEntry=S.entries.find(function(e){
+    return e.date===date0 && !e.isRestDay && (e.leaveType==='pl-full'||e.leaveType==='ul-full');
+  });
+  var isRestDay = isRestDayChecked() || !!savedRestEntry;
+  var isFullLeaveDay = !isRestDay && (
+    currentLeaveType==='pl-full' || currentLeaveType==='ul-full' || !!savedFullLeaveEntry
+  );
+  if(isRestDay || isFullLeaveDay){
     var rbar=document.getElementById('running-aht-bar'); if(rbar) rbar.style.display='none';
-    var isRD=isRestDayChecked();
-    var isPLFull=!isRD && currentLeaveType==='pl-full';
-    var isULFull=!isRD && currentLeaveType==='ul-full';
-
-    // Pick theme
-    var icon, label, accent, borderCol, bgCol, noteText;
-    if(isRD){
-      icon='🎬'; label='Rest Day'; accent='#D29922';
-      borderCol='rgba(210,153,34,.45)'; bgCol='rgba(210,153,34,.07)';
-      noteText='Enjoy the movies! No JC target today. 🍿';
-    } else if(isPLFull){
-      icon='🏖️'; label='Planned Leave'; accent='#0288D1';
-      borderCol='rgba(3,169,244,.45)'; bgCol='rgba(3,169,244,.07)';
-      noteText='Have a great day off! Full PL — no JC target today. ☀️';
-    } else {
-      icon='🐈‍⬛'; label='Unplanned Leave'; accent='#E53935';
-      borderCol='rgba(229,57,53,.45)'; bgCol='rgba(229,57,53,.07)';
-      noteText='Take care! Full UL — no JC target today. 🖤';
-    }
-
     previewEl.style.display='';
+    var _icon,_label,_accent,_border,_bg,_note;
+    if(isRestDay){
+      _icon='🎬'; _label='Rest Day'; _accent='#D29922';
+      _border='rgba(210,153,34,.45)'; _bg='rgba(210,153,34,.07)';
+      _note='Enjoy the movies! No JC target today. 🍿';
+    } else {
+      var _lt=(savedFullLeaveEntry&&savedFullLeaveEntry.leaveType)||currentLeaveType;
+      var _isPL=_lt==='pl-full';
+      _icon=_isPL?'🏖️':'🐈‍⬛';
+      _label=_isPL?'Planned Leave (Full Day)':'Unplanned Leave (Full Day)';
+      _accent=_isPL?'#0288D1':'#E53935';
+      _border=_isPL?'rgba(3,169,244,.45)':'rgba(229,57,53,.45)';
+      _bg=_isPL?'rgba(3,169,244,.07)':'rgba(229,57,53,.07)';
+      // Compute weekly context for leave card
+      var _wb=wb;
+      var _wbSaved=S.entries.filter(function(e){return e.wb===_wb;});
+      var _wbUpTo=_wbSaved.filter(function(e){return e.date<=date0;});
+      var _leaveDed=_wbUpTo.filter(function(e){return !e.isRestDay;}).reduce(function(s,e){
+        var lt=e.leaveType||'none';
+        if(lt==='pl-full'||lt==='ul-full') return s+1;
+        if(lt==='pl-half'||lt==='ul-half') return s+0.5;
+        return s;
+      },0);
+      if(!savedFullLeaveEntry) _leaveDed+=1; // live form, not yet saved
+      var _effDays=Math.max(0,5-_leaveDed);
+      var _base=tgtShift();
+      var _wkTgt=Math.max(0,Math.round(_base*_effDays));
+      var _wkDone=_wbUpTo.filter(function(e){return !e.isRestDay;}).reduce(function(s,e){return s+(e.totalJC||0);},0);
+      var _wkLeft=Math.max(0,_wkTgt-_wkDone);
+      _note='Weekly target reduced by 1 day (−'+_base+' JC). '+
+            _wkDone+' / '+_wkTgt+' JC done · '+_wkLeft+' left.';
+    }
     document.getElementById('jc-preview-cards').innerHTML=
       '<div style="grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;'+
-        'border-radius:12px;padding:28px 20px;border:2px solid '+borderCol+';background:'+bgCol+';text-align:center;min-height:120px">'+
-        '<div style="font-size:64px;line-height:1;margin-bottom:10px">'+icon+'</div>'+
-        '<div style="font-size:14px;font-weight:700;color:'+accent+';letter-spacing:.3px">'+label+'</div>'+
-        '<div style="font-size:11px;color:'+(isDark()?'#8B949E':'#656D76')+';margin-top:4px">No JC target for today</div>'+
+        'border-radius:12px;padding:28px 20px;border:2px solid '+_border+';background:'+_bg+';text-align:center;min-height:120px">'+
+        '<div style="font-size:64px;line-height:1;margin-bottom:10px">'+_icon+'</div>'+
+        '<div style="font-size:14px;font-weight:700;color:'+_accent+';letter-spacing:.3px">'+_label+'</div>'+
+        '<div style="font-size:11px;color:'+(isDark()?'#8B949E':'#656D76')+';margin-top:6px">'+_note+'</div>'+
       '</div>';
     document.getElementById('jc-preview-note').innerHTML=
-      '<div style="font-size:11px;color:'+accent+'">'+noteText+'</div>';
+      '<div style="font-size:11px;color:'+_accent+'">'+(isRestDay?'No JC target. Running AHT unchanged.':'No JC expected. Running AHT unchanged. Weekly target deducted.')+'</div>';
     return;
   }
 
@@ -1098,23 +1162,28 @@ function updateJCPreview(){
 
   // ── Weekly target: always 5 work days × daily base MINUS offline AND leave deductions ──
   // Use full WB saved (all days) for target calc so target doesn't shrink retroactively
-  var savedOfflineS=wbSavedUpTo.filter(function(e){return !e.isRestDay;}).reduce(function(s,e){
+  // Exclude rest days and full-leave days from offline/JC aggregations
+  function isWorkDay(e){ return !e.isRestDay && e.leaveType!=='pl-full' && e.leaveType!=='ul-full'; }
+  var savedOfflineS=wbSavedUpTo.filter(isWorkDay).reduce(function(s,e){
     var eo=0; IVS.forEach(function(iv){ eo+=(e.iv&&e.iv[iv]?e.iv[iv].offlineS||0:0); }); return s+eo;
   },0);
   var totalOfflineDeduction=Math.round((savedOfflineS+offlineS)/ahtTarget);
   // Saved leave day deductions (full=1, half=0.5 of a productive day)
-  var leaveDayDeduct=wbSavedUpTo.filter(function(e){return !e.isRestDay;}).reduce(function(s,e){
+  // Use ALL saved WB entries (not just up-to-date) for leave deduction so that
+  // a future locked PL/UL full day (e.g. Friday) reduces the weekly target when
+  // viewing any prior day (e.g. Thursday = last effective workday).
+  var leaveDayDeduct=wbSaved.filter(function(e){return !e.isRestDay;}).reduce(function(s,e){
     var lt=e.leaveType||'none';
     if(lt==='pl-full'||lt==='ul-full') return s+1;
     if(lt==='pl-half'||lt==='ul-half') return s+0.5;
     return s;
   },0);
-  // Today's unsaved leave deduction
-  leaveDayDeduct+=getLeaveDeduct();
+  // Only add live-form leave deduction when today has no saved entry yet
+  if(!savedTodayEntry) leaveDayDeduct+=getLeaveDeduct();
   var effectiveDays=Math.max(0, 5 - leaveDayDeduct);
   var weeklyTgt=Math.max(0, Math.round(dailyTgtBase*effectiveDays) - totalOfflineDeduction);
 
-  var wbJCDone=wbSavedUpTo.filter(function(e){return !e.isRestDay;}).reduce(function(s,e){return s+(e.totalJC||0);},0);
+  var wbJCDone=wbSavedUpTo.filter(isWorkDay).reduce(function(s,e){return s+(e.totalJC||0);},0);
   // If today's entry is already in wbSavedUpTo, don't add totalJC again
   var wbJCTotal=savedTodayEntry ? wbJCDone : wbJCDone+totalJC;
   var wbJCLeft=Math.max(0,weeklyTgt-wbJCTotal);
@@ -1125,24 +1194,30 @@ function updateJCPreview(){
   function dateToUTCMidnight(s){ var p=s.split('-'); return Date.UTC(+p[0],+p[1]-1,+p[2]); }
   var chosenMs=dateToUTCMidnight(date);
   var wbEntryForCount=WBS.slice().reverse().find(function(w){ return dateToUTCMidnight(w.date)<=chosenMs; });
-  var restDayDates={};
-  wbSaved.filter(function(e){ return e.isRestDay&&e.date; }).forEach(function(e){ restDayDates[e.date]=true; });
+  // Dates that are fully off (rest day OR full-day PL/UL) don't count as work days
+  var offDayDates={};
+  wbSaved.filter(function(e){ return e.date && (e.isRestDay||(e.leaveType==='pl-full'||e.leaveType==='ul-full')); })
+         .forEach(function(e){ offDayDates[e.date]=true; });
+  // Also treat today as off if live form is full-day leave (not yet saved)
+  if(!savedTodayEntry && (currentLeaveType==='pl-full'||currentLeaveType==='ul-full')) offDayDates[date]=true;
 
   var daysLeft=5, dayNum=1;
   if(wbEntryForCount){
     var wbSatMs=dateToUTCMidnight(wbEntryForCount.date);
     var wbFriMs=wbSatMs+6*86400000;
-    // Assign work-day numbers (1–5) to non-rest days across the full WB, capped at 5
-    var workDayNum=0, todayWorkDayNum=0;
+    // Count work-day number up to today, and count remaining workdays from today onward
+    // Both counts skip off days (rest day, PL full, UL full)
+    var workDayNum=0, todayWorkDayNum=0, daysLeftCount=0;
     for(var ms=wbSatMs; ms<=wbFriMs; ms+=86400000){
       var ds=new Date(ms).toISOString().slice(0,10);
-      if(!restDayDates[ds]){
-        workDayNum=Math.min(workDayNum+1, 5); // cap at 5
+      if(!offDayDates[ds]){
+        workDayNum++;
         if(ms<=chosenMs) todayWorkDayNum=workDayNum;
+        if(ms>=chosenMs) daysLeftCount++; // from today onward (inclusive)
       }
     }
     dayNum=Math.max(1, todayWorkDayNum);
-    daysLeft=Math.max(1, 5 - (dayNum - 1));
+    daysLeft=Math.max(1, daysLeftCount);
   }
 
   // Per Day Needed = remaining weekly JC ÷ days left
@@ -1170,20 +1245,36 @@ function updateJCPreview(){
 
   // Running AHT — current WB work-day entries up to chosen date only (no rest days) + current unsaved form input
   // Recompute prodS per-interval (all clocked-in time, offline excluded)
-  var wbWorkEntries=wbSavedUpTo.filter(function(e){return !e.isRestDay;});
+  // Running AHT: exclude rest days AND full-leave days (PL/UL full contribute no real work time)
+  var wbWorkEntries=wbSavedUpTo.filter(function(e){
+    return !e.isRestDay && e.leaveType!=='pl-full' && e.leaveType!=='ul-full';
+  });
   var wbProdSTotal=0, wbJCForAHT=0;
   wbWorkEntries.forEach(function(e){
     wbJCForAHT+=e.totalJC||0;
     IVS.forEach(function(iv){
       var d=(e.iv&&e.iv[iv])||{totalS:0,offlineS:0,jc:0};
-      wbProdSTotal+=Math.max(0,(d.totalS||0)-(d.offlineS||0));
+      // Only include interval time where JC > 0 for AHT — zero-JC intervals
+      // (tag offline or not encoding) must not inflate productive time.
+      if((d.jc||0)>0) wbProdSTotal+=Math.max(0,(d.totalS||0)-(d.offlineS||0));
     });
   });
   // When today's entry is already saved, it is included in wbWorkEntries — do not add form values again.
   // Also skip unsaved form contribution when no JC has been entered yet (avoids default minutes skewing AHT).
   var hasUnsavedJC=!savedTodayEntry&&!isRestDayChecked()&&totalJC>0;
+  // For unsaved form: sum only intervals that have JC entered
+  var unsavedProdS=0;
+  if(hasUnsavedJC){
+    IVS.forEach(function(iv){
+      var k=iv.replace(/\s+/g,'_');
+      var jc=parseInt((document.getElementById('ivj_'+k)||{}).value)||0;
+      var tMin=parseFloat((document.getElementById('ivt_'+k)||{}).value)||0;
+      var oMin=parseFloat((document.getElementById('ivo_'+k)||{}).value)||0;
+      if(jc>0) unsavedProdS+=Math.max(0,(tMin-oMin)*60);
+    });
+  }
   var runningJCForAHT=hasUnsavedJC?(wbJCForAHT+totalJC):wbJCForAHT;
-  var runningProdSForAHT=hasUnsavedJC?(wbProdSTotal+totalProdS):wbProdSTotal;
+  var runningProdSForAHT=hasUnsavedJC?(wbProdSTotal+unsavedProdS):wbProdSTotal;
   var weekRunningAHT=runningJCForAHT>0?runningProdSForAHT/runningJCForAHT:0;
   var ahtOk=weekRunningAHT>0&&weekRunningAHT<=ahtTarget;
 
@@ -1204,17 +1295,46 @@ function updateJCPreview(){
       '<div style="'+big(hasWeeklyData?wkCol:C.text2)+'">'+( hasWeeklyData ? wbJCTotal : '—' )+'</div>'+
       '<div style="'+sub(C.text2)+'">'+( hasWeeklyData ? 'of '+weeklyTgt+' · 5d'+(totalOfflineDeduction>0?' (−'+totalOfflineDeduction+' offline)':'')+' · '+daysLeft+'d left · '+wbJCLeft+' to go' : 'no entries this week yet' )+'</div>'+
     '</div>'+
-    (wbJCLeft>0?
-      '<div style="'+card(jcPerDayNeeded<=dailyTgtBase?C.green:C.yellow)+'">'+
+    (function(){
+      // Day is locked — show locked state
+      if(savedTodayEntry && savedTodayEntry.locked){
+        var lockedMet = totalJC>=jcPerDayNeeded && jcPerDayNeeded>0;
+        var lkCol = lockedMet ? C.green : C.text2;
+        return '<div style="'+card(lkCol)+'">'+
+          '<div style="'+lbl(C.text2)+'">Per Day Needed</div>'+
+          '<div style="'+big(lkCol)+'">'+
+            (lockedMet ? '✓' : jcPerDayNeeded)+
+          '</div>'+
+          '<div style="'+sub(C.text2)+'">'+
+            (lockedMet
+              ? '🔒 locked · day met!'
+              : '🔒 locked · '+totalJC+' / '+jcPerDayNeeded+' today')+
+          '</div>'+
+        '</div>';
+      }
+      if(wbJCLeft<=0){
+        // Weekly target met
+        return '<div style="'+card(hasWeeklyData?C.green:C.border)+'">'+
+          '<div style="'+lbl(hasWeeklyData?C.green:C.text2)+'">'+
+            (hasWeeklyData?'Week Done':'Per Day Needed')+
+          '</div>'+
+          '<div style="'+big(hasWeeklyData?C.green:C.text2)+'">'+(hasWeeklyData?'✓':'—')+'</div>'+
+          '<div style="'+sub(hasWeeklyData?C.green:C.text2)+'">'+(hasWeeklyData?'weekly target met!':'no entries this week yet')+'</div>'+
+        '</div>';
+      }
+      // Per day quota met for today
+      var todayPerDayMet = jcPerDayNeeded>0 && totalJC>=jcPerDayNeeded;
+      var pdCol = todayPerDayMet ? C.green : (jcPerDayNeeded<=dailyTgtBase?C.green:C.yellow);
+      return '<div style="'+card(pdCol)+'">'+
         '<div style="'+lbl(C.text2)+'">Per Day Needed</div>'+
-        '<div style="'+big(jcPerDayNeeded<=dailyTgtBase?C.green:C.yellow)+'">'+jcPerDayNeeded+'</div>'+
-        '<div style="'+sub(C.text2)+'">'+wbJCLeft+' JC ÷ '+daysLeft+'d left</div>'+
-      '</div>':
-      '<div style="'+card(hasWeeklyData?C.green:C.border)+'">'+
-        '<div style="'+lbl(hasWeeklyData?C.green:C.text2)+'">'+(hasWeeklyData?'Week Done':'Per Day Needed')+'</div>'+
-        '<div style="'+big(hasWeeklyData?C.green:C.text2)+'">'+(hasWeeklyData?'✓':'—')+'</div>'+
-        '<div style="'+sub(hasWeeklyData?C.green:C.text2)+'">'+(hasWeeklyData?'weekly target met!':'no entries this week yet')+'</div>'+
-      '</div>')+
+        (todayPerDayMet
+          ? '<div style="'+big(C.green)+'">✓</div>'+
+            '<div style="'+sub(C.green)+'">'+jcPerDayNeeded+' met! '+wbJCLeft+' JC left in week</div>'
+          : '<div style="'+big(pdCol)+'">'+jcPerDayNeeded+'</div>'+
+            '<div style="'+sub(C.text2)+'">'+wbJCLeft+' JC ÷ '+daysLeft+'d left</div>'
+        )+
+      '</div>';
+    })()+
     '<div style="'+card(weekRunningAHT>0?ahtOk?C.green:C.red:C.border)+'">'+
       '<div style="'+lbl(C.text2)+'">Running AHT</div>'+
       '<div style="'+big(weekRunningAHT>0?ahtOk?C.green:C.red:C.text2)+'">'+
@@ -1243,6 +1363,14 @@ function updateJCPreview(){
       '</div>'+
     '</div>';
 
+  var activeLT=savedTodayEntry?(savedTodayEntry.leaveType||'none'):currentLeaveType;
+  if(activeLT==='pl-full'||activeLT==='pl-half'){
+    var plLabel=activeLT==='pl-full'?'PL – Full Day':'PL – Half Day';
+    noteHtml+='<div style="font-size:11px;color:#0288D1;margin-bottom:3px">🏖️ <strong>'+plLabel+'</strong> — weekly target reduced by '+(activeLT==='pl-full'?'1 full day':'half a day')+'.</div>';
+  } else if(activeLT==='ul-full'||activeLT==='ul-half'){
+    var ulLabel=activeLT==='ul-full'?'UL – Full Day':'UL – Half Day';
+    noteHtml+='<div style="font-size:11px;color:#E53935;margin-bottom:3px">🐈‍⬛ <strong>'+ulLabel+'</strong> — weekly target reduced by '+(activeLT==='ul-full'?'1 full day':'half a day')+'.</div>';
+  }
   if(hasOffline) noteHtml+='<div style="font-size:11px;color:'+C.yellow+';margin-bottom:3px">⏸ '+totalOfflineMin.toFixed(1)+' min offline today → −'+todayOfflineDeduction+' JC from today · −'+totalOfflineDeduction+' JC from weekly target.</div>';
   if(restDaysWB>0) noteHtml+='<div style="font-size:11px;color:'+C.yellow+';margin-bottom:3px">🌙 '+restDaysWB+' rest day'+(restDaysWB>1?'s':'')+' logged · weekly target: '+weeklyTgt+' JC (5d countdown).</div>';
   if(wbJCLeft>0&&daysLeft>0){
@@ -1264,7 +1392,24 @@ function updateRunningAHT(totalJC, totalProdS){
   document.getElementById('running-aht-jc').textContent=totalJC||0;
   if(!totalJC||totalJC<=0||isRestDayChecked()){bar.style.display='none';return;}
   bar.style.display='';
-  var aht=totalProdS/totalJC;
+  // AHT bar: only count intervals with JC > 0
+  var ahtProdS=0;
+  IVS.forEach(function(iv){
+    var k=iv.replace(/\s+/g,'_');
+    var jc=parseInt((document.getElementById('ivj_'+k)||{}).value)||0;
+    var tMin=parseFloat((document.getElementById('ivt_'+k)||{}).value)||0;
+    var oMin=parseFloat((document.getElementById('ivo_'+k)||{}).value)||0;
+    if(jc>0) ahtProdS+=Math.max(0,(tMin-oMin)*60);
+  });
+  // If saved entry, recompute from saved IV data
+  if(savedTodayEntry){
+    ahtProdS=0;
+    IVS.forEach(function(iv){
+      var d=(savedTodayEntry.iv&&savedTodayEntry.iv[iv])||{};
+      if((d.jc||0)>0) ahtProdS+=Math.max(0,(d.totalS||0)-(d.offlineS||0));
+    });
+  }
+  var aht=totalJC>0?ahtProdS/totalJC:0;
   var ahtFixed=aht.toFixed(2);
   var ahtMin=(aht/60).toFixed(2);
   var valEl=document.getElementById('running-aht-val');
@@ -1339,6 +1484,7 @@ function checkDateSummary(dateVal){
     if(btn){ btn.textContent='＋ Add Entry'; btn.title=''; }
     if(notice) notice.style.display='none';
     renderLockedBanner(panel, existing, dateVal);
+    updateJCPreview();
     return;
   }
 
@@ -1346,11 +1492,21 @@ function checkDateSummary(dateVal){
   formBody.style.display='';
   panel.style.display='none';
 
-  if(!existing || existing.isRestDay){
+  if(!existing){
     if(btn){ btn.textContent='＋ Add Entry'; btn.title=''; }
     if(btnLock) btnLock.style.display='none';
     if(notice) notice.style.display='none';
     clearForm();
+    return;
+  }
+  // Saved unlocked rest day — show lock button so it can be locked and auto-advance
+  if(existing.isRestDay){
+    if(btn){ btn.textContent='♻️ Re-save Rest Day'; btn.title=''; }
+    if(btnLock){ btnLock.style.display=''; }
+    if(notice){
+      notice.style.display='block';
+      notice.innerHTML='🌙 <strong>'+dateVal+'</strong> is saved as a Rest Day. Hit 🔒 Save &amp; Lock to confirm and move to the next day.';
+    }
     return;
   }
 
@@ -1520,6 +1676,7 @@ function addEntry(){
   }
 
   var existingIdx=S.entries.findIndex(function(e){ return e.date===date; });
+  var isFullLeave = !isRest && (currentLeaveType==='pl-full' || currentLeaveType==='ul-full');
 
   if(existingIdx>=0){
     var existing=S.entries[existingIdx];
@@ -1530,32 +1687,51 @@ function addEntry(){
     calcEntry(existing);
     S.entries[existingIdx]=existing;
     persist();
-    showLogSaveNotice('✅ <strong>'+date+'</strong> updated! Hit 🔒 Save &amp; Lock when you\'re done for the day.');
-    checkDateSummary(date);
-    updateJCPreview();
   } else {
     var e=calcEntry({id:Date.now(),wb:wb,date:date,iv:iv,isRestDay:isRest,leaveType:isRest?'none':currentLeaveType});
     S.entries.push(e);
     persist();
-    showLogSaveNotice('✅ <strong>'+date+'</strong> saved! Keep updating each break, then 🔒 Lock when done.');
-    checkDateSummary(date);
-    updateJCPreview();
   }
+  // PL full / UL full: auto-lock and advance to next day immediately
+  if(isFullLeave){
+    var lockIdx=S.entries.findIndex(function(e){return e.date===date;});
+    if(lockIdx>=0){ S.entries[lockIdx].locked=true; S.entries[lockIdx].lockedAt=Date.now(); persist(); }
+    shiftDate(1);
+    return;
+  }
+  showLogSaveNotice(existingIdx>=0
+    ? '✅ <strong>'+date+'</strong> updated! Hit 🔒 Save &amp; Lock when you\'re done for the day.'
+    : '✅ <strong>'+date+'</strong> saved! Keep updating each break, then 🔒 Lock when done.');
+  checkDateSummary(date);
+  updateJCPreview();
 }
 
 function saveAndLock(){
   var date=document.getElementById('inp-date').value;
   if(!date) return;
-  // First do a normal save, then lock
-  addEntry();
-  // Find the entry and lock it
+  // For rest days, skip addEntry (form fields irrelevant) and just lock the existing entry
+  // PL/UL full and rest days are handled separately — addEntry handles PL/UL full
+  // (auto-locks + shiftDate inside addEntry), so don't double-call here.
+  var existingRest=S.entries.find(function(e){return e.date===date && e.isRestDay;});
+  var isLiveFullLeave=(currentLeaveType==='pl-full'||currentLeaveType==='ul-full');
+  var existingFullLeave=S.entries.find(function(e){return e.date===date && (e.leaveType==='pl-full'||e.leaveType==='ul-full');});
+  if(isLiveFullLeave || existingFullLeave){
+    // addEntry handles lock + advance for full leave
+    if(!existingFullLeave) addEntry();
+    else{
+      var idx2=S.entries.findIndex(function(e){return e.date===date;});
+      if(idx2>=0){ S.entries[idx2].locked=true; S.entries[idx2].lockedAt=Date.now(); persist(); }
+      shiftDate(1);
+    }
+    return;
+  }
+  if(!existingRest) addEntry();
   var idx=S.entries.findIndex(function(e){return e.date===date;});
   if(idx<0) return;
   S.entries[idx].locked=true;
   S.entries[idx].lockedAt=Date.now();
   persist();
-  showLogSaveNotice('🔒 <strong>'+date+'</strong> is now locked. Select a different date or unlock to edit.', 'lock');
-  checkDateSummary(date);
+  shiftDate(1);
 }
 
 function unlockEntry(dateVal){
