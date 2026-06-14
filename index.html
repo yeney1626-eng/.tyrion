@@ -414,13 +414,13 @@ tr.locked-row td{opacity:.75}
 <div id="app">
   <div class="sidebar">
     <div class="sidebar-brand">
-      <h1 id="sidebar-name" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">TeamRoanne AHT Tracker <a href="https://taskus.zoom.us/j/8837127574" target="_blank" rel="noopener" style="font-size:10px;font-weight:600;color:#2D8CFF;text-decoration:none;background:rgba(45,140,255,.12);border:1px solid rgba(45,140,255,.35);border-radius:5px;padding:2px 7px;white-space:nowrap">🎥 Zoom</a></h1>
+      <h1 id="sidebar-name" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">TeamRoanne AHT Tracker <a href="https://taskus.zoom.us/j/8837127574" target="_blank" rel="noopener" style="font-size:10px;font-weight:600;color:#2D8CFF;text-decoration:none;background:rgba(45,140,255,.12);border:1px solid rgba(45,140,255,.35);border-radius:5px;padding:2px 7px;white-space:nowrap">🎥 Zoom</a> <a href="https://boost.taskus.com/login" target="_blank" rel="noopener" style="font-size:10px;font-weight:600;color:#F57C00;text-decoration:none;background:rgba(245,124,0,.12);border:1px solid rgba(245,124,0,.35);border-radius:5px;padding:2px 7px;white-space:nowrap">⚡ Boost</a></h1>
       <p>Personal · Productivity</p>
     </div>
     <div class="nav-item active" onclick="showTab('log')" id="nav-log"><span class="nav-icon">✏️</span><span>Log Entry</span></div>
     <div class="nav-item" onclick="showTab('entries')" id="nav-entries"><span class="nav-icon">📋</span><span>Entries</span></div>
     <div class="nav-item" onclick="showTab('settings')" id="nav-settings"><span class="nav-icon">⚙️</span><span>Settings</span></div>
-    <div class="nav-item" onclick="showTab('game')" id="nav-game"><span class="nav-icon">🇵🇭</span><span>Trivia</span></div>
+    <div class="nav-item" onclick="showTab('game')" id="nav-game"><span class="nav-icon">🎮</span><span>Games</span></div>
     <div class="sidebar-bottom">
       <button class="settings-btn" onclick="showTab('settings')">⚙️ Settings</button>
       <button class="theme-toggle-btn" onclick="toggleTheme()">
@@ -439,7 +439,7 @@ tr.locked-row td{opacity:.75}
     <!-- ── LOG ENTRY ── -->
     <div class="section active" id="tab-log">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:6px">
-        <div class="page-title">✏️ Log Entry <a href="https://taskus.zoom.us/j/8837127574" target="_blank" rel="noopener" style="font-size:11px;font-weight:600;color:#2D8CFF;text-decoration:none;background:rgba(45,140,255,.12);border:1px solid rgba(45,140,255,.35);border-radius:5px;padding:2px 8px;vertical-align:middle;white-space:nowrap">🎥 Zoom</a></div>
+        <div class="page-title">✏️ Log Entry <a href="https://taskus.zoom.us/j/8837127574" target="_blank" rel="noopener" style="font-size:11px;font-weight:600;color:#2D8CFF;text-decoration:none;background:rgba(45,140,255,.12);border:1px solid rgba(45,140,255,.35);border-radius:5px;padding:2px 8px;vertical-align:middle;white-space:nowrap">🎥 Zoom</a> <a href="https://boost.taskus.com/login" target="_blank" rel="noopener" style="font-size:11px;font-weight:600;color:#F57C00;text-decoration:none;background:rgba(245,124,0,.12);border:1px solid rgba(245,124,0,.35);border-radius:5px;padding:2px 8px;vertical-align:middle;white-space:nowrap">⚡ Boost</a></div>
         <div id="ph-clock" style="font-size:11px;font-weight:700;background:var(--bg-el);border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--accent);font-family:'SF Mono',monospace;white-space:nowrap">🇵🇭 --</div>
       </div>
       <div class="page-sub">Input in <strong>minutes</strong> — stored &amp; displayed in <strong>seconds</strong>.</div>
@@ -515,7 +515,7 @@ tr.locked-row td{opacity:.75}
 
       </div><!-- /#log-form-body -->
       <div class="inline-btns">
-        <button class="btn btn-primary" id="btn-add-entry" onclick="addEntry()">＋ Add Entry</button>
+        <button class="btn btn-primary" id="btn-add-entry" onclick="addEntry()">💾 Save Entry</button>
         <button class="btn btn-success" id="btn-lock-entry" onclick="saveAndLock()" style="display:none">🔒 Save &amp; Lock Day</button>
         <button class="btn" onclick="clearForm()">Clear</button>
       </div>
@@ -577,53 +577,58 @@ tr.locked-row td{opacity:.75}
       </div>
     </div>
 
-    <!-- ── PH TRIVIA GAME ── -->
+    <!-- ── NOKIA 3210 GAMES ── -->
     <div class="section" id="tab-game">
-      <div class="page-title">🇵🇭 Philippines Trivia</div>
-      <div class="page-sub">Offline quiz — test your knowledge of the Pearl of the Orient! Break time? Go!</div>
+      <div class="page-title">🎮 Nokia 3210 Games</div>
+      <div class="page-sub">Classic offline games — Snake, Memory, Brick. Break time? Go!</div>
 
-      <!-- Score bar -->
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
-        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;display:flex;gap:14px;align-items:center">
-          <span>✅ <span id="trivia-score">0</span></span>
-          <span style="color:var(--text2)">|</span>
-          <span>❌ <span id="trivia-wrong">0</span></span>
-          <span style="color:var(--text2)">|</span>
-          <span>❓ Q<span id="trivia-qnum">1</span>/<span id="trivia-total">0</span></span>
+      <!-- Game selector -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-primary" id="gsel-snake" onclick="selectGame('snake')">🐍 Snake</button>
+        <button class="btn btn-sm" id="gsel-memory" onclick="selectGame('memory')">🧠 Memory</button>
+        <button class="btn btn-sm" id="gsel-brick" onclick="selectGame('brick')">🧱 Brick</button>
+      </div>
+
+      <!-- Snake -->
+      <div id="game-snake">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span style="font-size:12px;color:var(--text2)">Score: <strong id="snake-score">0</strong></span>
+          <span style="font-size:12px;color:var(--text2)">Best: <strong id="snake-best">0</strong></span>
+          <button class="btn btn-sm" onclick="snakeRestart()" style="margin-left:auto">🔄 Restart</button>
         </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn btn-sm" id="trivia-easy-btn" onclick="triviaStart('easy')">🌴 Easy</button>
-          <button class="btn btn-sm" id="trivia-med-btn" onclick="triviaStart('medium')">🌊 Medium</button>
-          <button class="btn btn-sm" id="trivia-hard-btn" onclick="triviaStart('hard')">🦅 Hard</button>
-          <button class="btn btn-sm btn-primary" id="trivia-restart-btn" onclick="triviaRestart()">🔄 Restart</button>
-        </div>
-        <div style="font-size:11px;color:var(--text2);background:var(--bg-el);border:1px solid var(--border);border-radius:6px;padding:4px 9px">
-          ⌨️ Keypad: <strong>1-4</strong>=answer &nbsp;·&nbsp; <strong>*</strong>=restart &nbsp;·&nbsp; <strong>5</strong>=next
+        <canvas id="snake-canvas" width="280" height="280" style="display:block;margin:0 auto;background:#111;border-radius:8px;border:2px solid var(--border);touch-action:none"></canvas>
+        <div id="snake-msg" style="text-align:center;margin-top:10px;font-size:13px;font-weight:700;color:var(--accent2)">Tap canvas or press arrow keys to start!</div>
+        <!-- D-pad for mobile -->
+        <div style="display:grid;grid-template-columns:40px 40px 40px;grid-template-rows:40px 40px;gap:4px;width:fit-content;margin:12px auto 0">
+          <div></div>
+          <button class="btn" style="padding:0;font-size:18px" onclick="snakeDir(0,-1)">▲</button>
+          <div></div>
+          <button class="btn" style="padding:0;font-size:18px" onclick="snakeDir(-1,0)">◀</button>
+          <button class="btn" style="padding:0;font-size:18px" onclick="snakeDir(0,1)">▼</button>
+          <button class="btn" style="padding:0;font-size:18px" onclick="snakeDir(1,0)">▶</button>
         </div>
       </div>
 
-      <!-- Question card -->
-      <div id="trivia-card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:14px;min-height:120px">
-        <div id="trivia-category" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--accent);margin-bottom:8px"></div>
-        <div id="trivia-question" style="font-size:16px;font-weight:700;line-height:1.5;margin-bottom:18px">Press a difficulty button or [*] to start!</div>
-        <div id="trivia-choices" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
-        <div id="trivia-next-wrap" style="display:none;margin-top:12px;text-align:right">
-          <button class="btn btn-primary btn-sm" onclick="triviaNext()">Next ▶ [5]</button>
+      <!-- Memory -->
+      <div id="game-memory" style="display:none">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span style="font-size:12px;color:var(--text2)">Moves: <strong id="mem-moves">0</strong></span>
+          <span style="font-size:12px;color:var(--text2)">Pairs: <strong id="mem-pairs">0</strong>/8</span>
+          <button class="btn btn-sm" onclick="memRestart()" style="margin-left:auto">🔄 Restart</button>
         </div>
+        <div id="mem-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;max-width:300px;margin:0 auto"></div>
+        <div id="mem-msg" style="text-align:center;margin-top:10px;font-size:13px;font-weight:700;color:var(--accent2)"></div>
       </div>
 
-      <!-- Feedback / result banner -->
-      <div id="trivia-feedback" style="display:none;border-radius:8px;padding:12px 16px;margin-bottom:12px;font-size:13px;font-weight:700"></div>
-
-      <!-- Explanation -->
-      <div id="trivia-explain" style="display:none;background:var(--bg-el);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px"></div>
-
-      <!-- Game over panel -->
-      <div id="trivia-gameover" style="display:none;text-align:center;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:30px 20px">
-        <div id="trivia-go-emoji" style="font-size:52px;margin-bottom:10px"></div>
-        <div id="trivia-go-title" style="font-size:20px;font-weight:700;margin-bottom:6px"></div>
-        <div id="trivia-go-sub" style="font-size:13px;color:var(--text2);margin-bottom:18px"></div>
-        <button class="btn btn-primary" onclick="triviaRestart()">🔄 Play Again</button>
+      <!-- Brick -->
+      <div id="game-brick" style="display:none">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span style="font-size:12px;color:var(--text2)">Score: <strong id="brick-score">0</strong></span>
+          <span style="font-size:12px;color:var(--text2)">Lives: <strong id="brick-lives">3</strong></span>
+          <button class="btn btn-sm" onclick="brickRestart()" style="margin-left:auto">🔄 Restart</button>
+        </div>
+        <canvas id="brick-canvas" width="280" height="220" style="display:block;margin:0 auto;background:#111;border-radius:8px;border:2px solid var(--border);touch-action:none"></canvas>
+        <div id="brick-msg" style="text-align:center;margin-top:10px;font-size:13px;font-weight:700;color:var(--accent2)">Tap canvas to start! Drag to move paddle.</div>
       </div>
     </div>
   
@@ -870,8 +875,7 @@ function showTab(t){
   if(t==='entries'){ buildYearFilter(); renderEntries(); }
   if(t==='settings'){ loadSettingsForm(); }
   if(t==='game'){
-    document.getElementById('trivia-card').style.display='';
-    if(!triviaStarted) triviaStart('easy');
+    selectGame('snake');
   }
 }
 
@@ -1039,7 +1043,7 @@ function clearForm(){
   });
   // Reset button and notice
   var btn=document.getElementById('btn-add-entry');
-  if(btn){ btn.textContent='＋ Add Entry'; btn.title=''; }
+  if(btn){ btn.textContent='💾 Save Entry'; btn.title=''; }
   var notice=document.getElementById('log-save-notice');
   if(notice) notice.style.display='none';
   updateJCPreview();
@@ -1202,26 +1206,42 @@ function updateJCPreview(){
   if(!savedTodayEntry && (currentLeaveType==='pl-full'||currentLeaveType==='ul-full')) offDayDates[date]=true;
 
   var daysLeft=5, dayNum=1;
+  var wbSatMs=0, wbFriMs=0;
   if(wbEntryForCount){
-    var wbSatMs=dateToUTCMidnight(wbEntryForCount.date);
-    var wbFriMs=wbSatMs+6*86400000;
-    // Count work-day number up to today, and count remaining workdays from today onward
-    // Both counts skip off days (rest day, PL full, UL full)
-    var workDayNum=0, todayWorkDayNum=0, daysLeftCount=0;
+    wbSatMs=dateToUTCMidnight(wbEntryForCount.date);
+    wbFriMs=wbSatMs+6*86400000;
+    // Count work-day number up to today, and count remaining workdays from today onward.
+    // Both counts skip off days (rest day, PL full, UL full). Hard cap at 5 workdays.
+    var workDayNum=0, todayWorkDayNum=0, daysLeftCount=0, totalWorkDays=0;
     for(var ms=wbSatMs; ms<=wbFriMs; ms+=86400000){
       var ds=new Date(ms).toISOString().slice(0,10);
-      if(!offDayDates[ds]){
-        workDayNum++;
+      if(!offDayDates[ds] && totalWorkDays<5){
+        totalWorkDays++;
+        workDayNum=totalWorkDays;
         if(ms<=chosenMs) todayWorkDayNum=workDayNum;
-        if(ms>=chosenMs) daysLeftCount++; // from today onward (inclusive)
+        if(ms>=chosenMs) daysLeftCount++;
       }
     }
     dayNum=Math.max(1, todayWorkDayNum);
     daysLeft=Math.max(1, daysLeftCount);
   }
 
-  // Per Day Needed = remaining weekly JC ÷ days left
-  var jcPerDayNeeded=daysLeft>0?Math.ceil(wbJCLeft/daysLeft):0;
+  // Per Day Needed:
+  // - Day 1 of WB: compute fresh (no prior day to lock to)
+  // - Day 2+: lock to the value set at START of today = wbJCLeft_before_today ÷ daysLeft_today
+  //   This means today's own JC doesn't move the per-day target mid-day.
+  var jcPerDayNeeded;
+  if(dayNum<=1){
+    // First workday — compute normally
+    jcPerDayNeeded=daysLeft>0?Math.ceil(wbJCLeft/daysLeft):0;
+  } else {
+    // Lock to start-of-day value: use JC done BEFORE today (prior days only)
+    var jcDoneBeforeToday=wbSavedUpTo.filter(function(e){
+      return !e.isRestDay && e.leaveType!=='pl-full' && e.leaveType!=='ul-full' && e.date<date;
+    }).reduce(function(s,e){ return s+(e.totalJC||0); },0);
+    var wbJCLeftAtStartOfToday=Math.max(0, weeklyTgt-jcDoneBeforeToday);
+    jcPerDayNeeded=daysLeft>0?Math.ceil(wbJCLeftAtStartOfToday/daysLeft):0;
+  }
   var jcLeft=Math.max(0,todayJCNeeded-totalJC);
   var pct=todayJCNeeded>0?Math.min(100,Math.round(totalJC/todayJCNeeded*100)):0;
   var wbPct=weeklyTgt>0?Math.min(100,Math.round(wbJCTotal/weeklyTgt*100)):0;
@@ -1249,30 +1269,50 @@ function updateJCPreview(){
   var wbWorkEntries=wbSavedUpTo.filter(function(e){
     return !e.isRestDay && e.leaveType!=='pl-full' && e.leaveType!=='ul-full';
   });
+  // AHT rule: include all intervals up to the LAST interval with JC > 0.
+  // Passed breaks before the last JC interval are included (they were worked through).
+  // Fully-offline intervals (totalMin == offlineMin) are excluded regardless.
+  function prodSForAHT_saved(entry){
+    var ivData=IVS.map(function(iv){ return (entry.iv&&entry.iv[iv])||{totalS:0,offlineS:0,jc:0}; });
+    var lastJCIdx=-1;
+    ivData.forEach(function(d,i){ if((d.jc||0)>0) lastJCIdx=i; });
+    if(lastJCIdx<0) return 0;
+    var s=0;
+    for(var i=0;i<=lastJCIdx;i++){
+      var d=ivData[i];
+      var tS=d.totalS||0, oS=d.offlineS||0;
+      // Skip fully-offline intervals
+      if(tS>0 && oS>=tS) continue;
+      s+=Math.max(0,tS-oS);
+    }
+    return s;
+  }
+  function prodSForAHT_live(){
+    var ivData=IVS.map(function(iv){
+      var k=iv.replace(/\s+/g,'_');
+      var tMin=parseFloat((document.getElementById('ivt_'+k)||{}).value)||0;
+      var oMin=parseFloat((document.getElementById('ivo_'+k)||{}).value)||0;
+      var jc=parseInt((document.getElementById('ivj_'+k)||{}).value)||0;
+      return {tS:tMin*60,oS:oMin*60,jc:jc};
+    });
+    var lastJCIdx=-1;
+    ivData.forEach(function(d,i){ if(d.jc>0) lastJCIdx=i; });
+    if(lastJCIdx<0) return 0;
+    var s=0;
+    for(var i=0;i<=lastJCIdx;i++){
+      var d=ivData[i];
+      if(d.tS>0 && d.oS>=d.tS) continue;
+      s+=Math.max(0,d.tS-d.oS);
+    }
+    return s;
+  }
   var wbProdSTotal=0, wbJCForAHT=0;
   wbWorkEntries.forEach(function(e){
     wbJCForAHT+=e.totalJC||0;
-    IVS.forEach(function(iv){
-      var d=(e.iv&&e.iv[iv])||{totalS:0,offlineS:0,jc:0};
-      // Only include interval time where JC > 0 for AHT — zero-JC intervals
-      // (tag offline or not encoding) must not inflate productive time.
-      if((d.jc||0)>0) wbProdSTotal+=Math.max(0,(d.totalS||0)-(d.offlineS||0));
-    });
+    wbProdSTotal+=prodSForAHT_saved(e);
   });
-  // When today's entry is already saved, it is included in wbWorkEntries — do not add form values again.
-  // Also skip unsaved form contribution when no JC has been entered yet (avoids default minutes skewing AHT).
   var hasUnsavedJC=!savedTodayEntry&&!isRestDayChecked()&&totalJC>0;
-  // For unsaved form: sum only intervals that have JC entered
-  var unsavedProdS=0;
-  if(hasUnsavedJC){
-    IVS.forEach(function(iv){
-      var k=iv.replace(/\s+/g,'_');
-      var jc=parseInt((document.getElementById('ivj_'+k)||{}).value)||0;
-      var tMin=parseFloat((document.getElementById('ivt_'+k)||{}).value)||0;
-      var oMin=parseFloat((document.getElementById('ivo_'+k)||{}).value)||0;
-      if(jc>0) unsavedProdS+=Math.max(0,(tMin-oMin)*60);
-    });
-  }
+  var unsavedProdS=hasUnsavedJC?prodSForAHT_live():0;
   var runningJCForAHT=hasUnsavedJC?(wbJCForAHT+totalJC):wbJCForAHT;
   var runningProdSForAHT=hasUnsavedJC?(wbProdSTotal+unsavedProdS):wbProdSTotal;
   var weekRunningAHT=runningJCForAHT>0?runningProdSForAHT/runningJCForAHT:0;
@@ -1381,33 +1421,44 @@ function updateJCPreview(){
   }
   document.getElementById('jc-preview-note').innerHTML=noteHtml;
   // Use the authoritative prodS (saved entry when available, otherwise live form value)
-  var ahtProdS = savedTodayEntry ? savedTodayEntry.totalProdS : totalProdS;
-  updateRunningAHT(totalJC, ahtProdS);
+  updateRunningAHT(totalJC, savedTodayEntry||null);
 }
 
-function updateRunningAHT(totalJC, totalProdS){
+function updateRunningAHT(totalJC, savedEntry){
   var bar=document.getElementById('running-aht-bar'); if(!bar) return;
   var tgt=S.ahtTarget||17;
   document.getElementById('running-aht-tgt').textContent=tgt+'s';
   document.getElementById('running-aht-jc').textContent=totalJC||0;
   if(!totalJC||totalJC<=0||isRestDayChecked()){bar.style.display='none';return;}
   bar.style.display='';
-  // AHT bar: only count intervals with JC > 0
+  // Include all intervals up to the last one with JC > 0 (passed breaks count).
+  // Skip only fully-offline intervals (total == offline).
   var ahtProdS=0;
-  IVS.forEach(function(iv){
-    var k=iv.replace(/\s+/g,'_');
-    var jc=parseInt((document.getElementById('ivj_'+k)||{}).value)||0;
-    var tMin=parseFloat((document.getElementById('ivt_'+k)||{}).value)||0;
-    var oMin=parseFloat((document.getElementById('ivo_'+k)||{}).value)||0;
-    if(jc>0) ahtProdS+=Math.max(0,(tMin-oMin)*60);
-  });
-  // If saved entry, recompute from saved IV data
-  if(savedTodayEntry){
-    ahtProdS=0;
-    IVS.forEach(function(iv){
-      var d=(savedTodayEntry.iv&&savedTodayEntry.iv[iv])||{};
-      if((d.jc||0)>0) ahtProdS+=Math.max(0,(d.totalS||0)-(d.offlineS||0));
+  if(savedEntry){
+    var _ivData=IVS.map(function(iv){ return (savedEntry.iv&&savedEntry.iv[iv])||{totalS:0,offlineS:0,jc:0}; });
+    var _lastJC=-1;
+    _ivData.forEach(function(d,i){ if((d.jc||0)>0) _lastJC=i; });
+    for(var _i=0;_i<=_lastJC;_i++){
+      var _d=_ivData[_i];
+      if((_d.totalS||0)>0 && (_d.offlineS||0)>=(_d.totalS||0)) continue;
+      ahtProdS+=Math.max(0,(_d.totalS||0)-(_d.offlineS||0));
+    }
+  } else {
+    var _ivLive=IVS.map(function(iv){
+      var k=iv.replace(/\s+/g,'_');
+      return {
+        jc:parseInt((document.getElementById('ivj_'+k)||{}).value)||0,
+        tS:(parseFloat((document.getElementById('ivt_'+k)||{}).value)||0)*60,
+        oS:(parseFloat((document.getElementById('ivo_'+k)||{}).value)||0)*60
+      };
     });
+    var _lastJCLive=-1;
+    _ivLive.forEach(function(d,i){ if(d.jc>0) _lastJCLive=i; });
+    for(var _j=0;_j<=_lastJCLive;_j++){
+      var _dl=_ivLive[_j];
+      if(_dl.tS>0 && _dl.oS>=_dl.tS) continue;
+      ahtProdS+=Math.max(0,_dl.tS-_dl.oS);
+    }
   }
   var aht=totalJC>0?ahtProdS/totalJC:0;
   var ahtFixed=aht.toFixed(2);
@@ -1468,7 +1519,7 @@ function checkDateSummary(dateVal){
 
   if(!dateVal){
     formBody.style.display=''; panel.style.display='none';
-    if(btn){ btn.textContent='＋ Add Entry'; btn.title=''; }
+    if(btn){ btn.textContent='💾 Save Entry'; btn.title=''; }
     if(btnLock) btnLock.style.display='none';
     if(notice) notice.style.display='none';
     return;
@@ -1481,7 +1532,7 @@ function checkDateSummary(dateVal){
     formBody.style.display='none';
     panel.style.display='';
     if(btnLock) btnLock.style.display='none';
-    if(btn){ btn.textContent='＋ Add Entry'; btn.title=''; }
+    if(btn){ btn.textContent='💾 Save Entry'; btn.title=''; }
     if(notice) notice.style.display='none';
     renderLockedBanner(panel, existing, dateVal);
     updateJCPreview();
@@ -1493,7 +1544,7 @@ function checkDateSummary(dateVal){
   panel.style.display='none';
 
   if(!existing){
-    if(btn){ btn.textContent='＋ Add Entry'; btn.title=''; }
+    if(btn){ btn.textContent='💾 Save Entry'; btn.title=''; }
     if(btnLock) btnLock.style.display='none';
     if(notice) notice.style.display='none';
     clearForm();
@@ -1512,7 +1563,7 @@ function checkDateSummary(dateVal){
 
   // Pre-fill form with existing data
   prefillFormFromEntry(existing);
-  if(btn){ btn.textContent='💾 Update Entry'; btn.title='Saves over existing entry'; }
+  if(btn){ btn.textContent='🔄 Update Entry'; btn.title='Update entry for this break'; }
   if(btnLock) btnLock.style.display='';
   if(notice){
     notice.style.display='block';
@@ -1668,9 +1719,12 @@ function addEntry(){
   if(!isRest){
     IVS.forEach(function(ivn){
       var k=ivn.replace(/\s+/g,'_');
-      var tMin=parseFloat(document.getElementById('ivt_'+k).value)||0;
-      var oMin=parseFloat(document.getElementById('ivo_'+k).value)||0;
-      var jc=parseInt(document.getElementById('ivj_'+k).value)||0;
+      var tEl=document.getElementById('ivt_'+k);
+      var oEl=document.getElementById('ivo_'+k);
+      var jEl=document.getElementById('ivj_'+k);
+      var tMin=tEl?parseFloat(tEl.value)||0:0;
+      var oMin=oEl?parseFloat(oEl.value)||0:0;
+      var jc=jEl?parseInt(jEl.value)||0:0;
       iv[ivn]={totalMin:tMin,offlineMin:oMin,totalS:minToSec(tMin),offlineS:minToSec(oMin),jc:jc};
     });
   }
@@ -1699,9 +1753,12 @@ function addEntry(){
     shiftDate(1);
     return;
   }
-  showLogSaveNotice(existingIdx>=0
-    ? '✅ <strong>'+date+'</strong> updated! Hit 🔒 Save &amp; Lock when you\'re done for the day.'
-    : '✅ <strong>'+date+'</strong> saved! Keep updating each break, then 🔒 Lock when done.');
+  showLogSaveNotice('✅ <strong>'+date+'</strong> '+(existingIdx>=0?'updated':'saved')+'! Hit 🔒 Save &amp; Lock Day when you\'re done.');
+  // After any save, always show Update Entry button
+  var _btn=document.getElementById('btn-add-entry');
+  if(_btn) _btn.textContent='🔄 Update Entry';
+  var _btnLock=document.getElementById('btn-lock-entry');
+  if(_btnLock) _btnLock.style.display='';
   checkDateSummary(date);
   updateJCPreview();
 }
@@ -1789,21 +1846,32 @@ function getYearEntries(){
   var year=yearSel?parseInt(yearSel.value):2026;
   return S.entries.filter(function(e){return e.date&&e.date.startsWith(year+'');});
 }
+function entryProdSForAHT(e){
+  // Include all intervals up to the last one with JC > 0.
+  // Passed breaks with 0 JC are included; fully-offline intervals are skipped.
+  var ivData=IVS.map(function(iv){ return (e.iv&&e.iv[iv])||{totalS:0,offlineS:0,jc:0}; });
+  var lastJCIdx=-1;
+  ivData.forEach(function(d,i){ if((d.jc||0)>0) lastJCIdx=i; });
+  if(lastJCIdx<0) return 0;
+  var s=0;
+  for(var i=0;i<=lastJCIdx;i++){
+    var d=ivData[i];
+    var tS=d.totalS||0, oS=d.offlineS||0;
+    if(tS>0 && oS>=tS) continue;
+    s+=Math.max(0,tS-oS);
+  }
+  return s;
+}
+
 function renderEntries(){
   buildYearFilter();
   var rows=getYearEntries().slice().reverse();
   // Summary metrics — exclude rest days from JC stats
   var workRows=rows.filter(function(e){return !e.isRestDay;});
   var restCount=rows.filter(function(e){return e.isRestDay;}).length;
-  // Recompute prodS per-interval (all clocked-in time, offline excluded)
   var totalJC=workRows.reduce(function(s,e){return s+(e.totalJC||0);},0);
   var totalProd=0;
-  workRows.forEach(function(e){
-    IVS.forEach(function(iv){
-      var d=(e.iv&&e.iv[iv])||{totalS:0,offlineS:0,jc:0};
-      totalProd+=Math.max(0,(d.totalS||0)-(d.offlineS||0));
-    });
-  });
+  workRows.forEach(function(e){ totalProd+=entryProdSForAHT(e); });
   var avgAHT=totalJC>0?parseFloat((totalProd/totalJC).toFixed(2)):0;
   var met=workRows.filter(function(e){return e.status==='Met';}).length;
   var metPct=workRows.length?Math.round(met/workRows.length*100):0;
@@ -2001,7 +2069,7 @@ function exportXLSX(){
   var workRows=rows.filter(function(e){return !e.isRestDay;});
   var totalJC=workRows.reduce(function(s,e){return s+(e.totalJC||0);},0);
   var totalProd=0;
-  workRows.forEach(function(e){ IVS.forEach(function(iv){ var d=(e.iv&&e.iv[iv])||{}; totalProd+=Math.max(0,(d.totalS||0)-(d.offlineS||0)); }); });
+  workRows.forEach(function(e){ totalProd+=entryProdSForAHT(e); });
   var avgAHT=totalJC>0?(totalProd/totalJC).toFixed(2):0;
   var met=workRows.filter(function(e){return e.status==='Met';}).length;
   var plDays=rows.filter(function(e){var lt=e.leaveType||'none'; return lt==='pl-full'?1:lt==='pl-half'?0.5:0;}).reduce(function(s,e){var lt=e.leaveType||'none'; return s+(lt==='pl-full'?1:lt==='pl-half'?0.5:0);},0);
@@ -2368,243 +2436,10 @@ function deleteEntryConfirm(id){
 
 
 // ══ PHILIPPINES TRIVIA GAME ══
-var TRIVIA_QUESTIONS = [
-// --- EASY ---
-{d:'easy',cat:'Geography',q:'What is the capital city of the Philippines?',a:'Manila',o:['Cebu','Davao','Quezon City']},
-{d:'easy',cat:'Geography',q:'Which ocean surrounds the Philippines?',a:'Pacific Ocean',o:['Indian Ocean','Atlantic Ocean','Arctic Ocean']},
-{d:'easy',cat:'Culture',q:'What is the national language of the Philippines?',a:'Filipino',o:['Tagalog','Cebuano','Ilocano']},
-{d:'easy',cat:'Geography',q:'How many islands does the Philippines have approximately?',a:'7,641',o:['3,000','10,000','5,000']},
-{d:'easy',cat:'Nature',q:'What is the national bird of the Philippines?',a:'Philippine Eagle',o:['Maya','Kalaw','Tamaraw']},
-{d:'easy',cat:'Nature',q:'What is the national flower of the Philippines?',a:'Sampaguita',o:['Rose','Waling-waling','Ilang-ilang']},
-{d:'easy',cat:'Culture',q:'What is the name of the Philippine national hero?',a:'José Rizal',o:['Emilio Aguinaldo','Andrés Bonifacio','Lapu-Lapu']},
-{d:'easy',cat:'Food',q:'What is the national dish of the Philippines?',a:'Adobo',o:['Sinigang','Kare-kare','Lechon']},
-{d:'easy',cat:'Geography',q:'Mindanao is which type of island in the Philippines?',a:'Second largest',o:['Smallest','Largest','Third largest']},
-{d:'easy',cat:'Culture',q:'What currency is used in the Philippines?',a:'Philippine Peso',o:['Baht','Rupiah','Ringgit']},
-{d:'easy',cat:'Geography',q:'Which body of water lies to the west of the Philippines?',a:'South China Sea',o:['Celebes Sea','Sulu Sea','Philippine Sea']},
-{d:'easy',cat:'Culture',q:'What sport is the Philippines most famous for internationally?',a:'Boxing',o:['Basketball','Swimming','Soccer']},
-{d:'easy',cat:'Nature',q:'What is the largest lake in the Philippines?',a:'Laguna de Bay',o:['Taal Lake','Lake Sebu','Lake Mainit']},
-{d:'easy',cat:'History',q:'From which country did the Philippines gain independence in 1946?',a:'United States',o:['Spain','Japan','United Kingdom']},
-{d:'easy',cat:'Culture',q:'What does "Mabuhay" mean in Filipino?',a:'Long live / Welcome',o:['Thank you','Goodbye','Good morning']},
-// --- MEDIUM ---
-{d:'medium',cat:'History',q:'Who was the first President of the Philippines?',a:'Emilio Aguinaldo',o:['Manuel Quezon','Sergio Osmeña','Manuel Roxas']},
-{d:'medium',cat:'Geography',q:'What is the highest peak in the Philippines?',a:'Mount Apo',o:['Mount Mayon','Mount Pulag','Mount Halcon']},
-{d:'medium',cat:'Nature',q:'Which Philippine lake has a volcano inside an island inside a lake inside an island?',a:'Taal Lake',o:['Laguna de Bay','Lanao Lake','Danao Lake']},
-{d:'medium',cat:'History',q:'What year did Spain colonize the Philippines?',a:'1565',o:['1521','1600','1492']},
-{d:'medium',cat:'Geography',q:'Which island group is Cebu City located in?',a:'Visayas',o:['Luzon','Mindanao','Palawan']},
-{d:'medium',cat:'History',q:'Lapu-Lapu defeated which foreign explorer in 1521?',a:'Ferdinand Magellan',o:['Legazpi','Elcano','Pigafetta']},
-{d:'medium',cat:'Nature',q:'The Tubbataha Reef is a UNESCO World Heritage site in which sea?',a:'Sulu Sea',o:['Celebes Sea','Philippine Sea','South China Sea']},
-{d:'medium',cat:'Culture',q:'What is the longest river in the Philippines?',a:'Cagayan River',o:['Pampanga River','Agusan River','Mindanao River']},
-{d:'medium',cat:'Culture',q:'What is "bayanihan" in Filipino culture?',a:'Community spirit / helping each other',o:['Harvest festival','Religious procession','Boat race']},
-{d:'medium',cat:'History',q:'The EDSA People Power Revolution happened in what year?',a:'1986',o:['1972','1983','1990']},
-{d:'medium',cat:'Geography',q:'What is the southernmost city in the Philippines?',a:'General Santos',o:['Davao','Zamboanga','Cotabato']},
-{d:'medium',cat:'Food',q:'Which Philippine dish is made of pork knuckles braised in banana blossom?',a:'Kare-kare',o:['Sinigang','Crispy pata','Dinuguan']},
-{d:'medium',cat:'Nature',q:'Which Philippine species is the world\'s largest bat?',a:'Giant golden-crowned flying fox',o:['Philippine tube-nosed bat','Horseshoe bat','Buettikofer\'s bat']},
-{d:'medium',cat:'Culture',q:'What traditional Filipino hat is made of buri palm leaves?',a:'Salakot',o:['Barong','Terno','Malong']},
-{d:'medium',cat:'History',q:'Who founded the Katipunan revolutionary society in 1892?',a:'Andrés Bonifacio',o:['José Rizal','Emilio Aguinaldo','Antonio Luna']},
-// --- HARD ---
-{d:'hard',cat:'History',q:'In what year did the Philippines become a Commonwealth under American rule?',a:'1935',o:['1898','1902','1946']},
-{d:'hard',cat:'Geography',q:'What is the total number of provinces in the Philippines (as of 2024)?',a:'82',o:['79','86','75']},
-{d:'hard',cat:'Nature',q:'What is the scientific name of the Philippine Eagle?',a:'Pithecophaga jefferyi',o:['Haliaetus leucogaster','Aquila chrysaetos','Spizaetus philippensis']},
-{d:'hard',cat:'Culture',q:'What is the ancient pre-colonial writing system of the Philippines?',a:'Baybayin',o:['Alibata','Kawi','Butuan Script']},
-{d:'hard',cat:'History',q:'Which treaty ended the Spanish-American War and ceded the Philippines to the USA?',a:'Treaty of Paris (1898)',o:['Treaty of Biak-na-Bato','Treaty of Manila','Treaty of Guadalupe Hidalgo']},
-{d:'hard',cat:'Geography',q:'Which Philippine province has the most number of municipalities?',a:'Cebu',o:['Negros Occidental','Pangasinan','Iloilo']},
-{d:'hard',cat:'Culture',q:'What is the Philippine epic poem of the Maranao people called?',a:'Darangen',o:['Ibong Adarna','Florante at Laura','Hudhud']},
-{d:'hard',cat:'History',q:'Who wrote "Noli Me Tangere," a novel that ignited Philippine nationalism?',a:'José Rizal',o:['Nick Joaquin','Amado Hernandez','Francisco Balagtas']},
-{d:'hard',cat:'Nature',q:'The Philippine crocodile (Crocodylus mindorensis) is endemic to which islands?',a:'Mindanao and Negros',o:['Luzon and Palawan','Visayas only','Mindanao only']},
-{d:'hard',cat:'Geography',q:'What is the oldest city in the Philippines?',a:'Cebu City',o:['Manila','Vigan','Iloilo City']},
-{d:'hard',cat:'Culture',q:'The Ati-Atihan festival is held annually in which city?',a:'Kalibo, Aklan',o:['Cebu City','Iloilo City','Lucban, Quezon']},
-{d:'hard',cat:'History',q:'Under the Marcos martial law era, what year was it declared?',a:'1972',o:['1965','1969','1978']},
-{d:'hard',cat:'Nature',q:'Which Philippine island is home to the chocolate hills?',a:'Bohol',o:['Cebu','Negros','Leyte']},
-{d:'hard',cat:'Culture',q:'What is the Filipino term for a traditional house built on stilts?',a:'Bahay Kubo',o:['Bahay na bato','Nipa hut','Palacyo']},
-{d:'hard',cat:'History',q:'The Battle of Mactan in 1521 took place on which island?',a:'Cebu',o:['Mindanao','Leyte','Bohol']}
-];
-
-var triviaState = {
-  deck:[],
-  idx:0,
-  score:0,
-  wrong:0,
-  answered:false,
-  diff:'easy',
-  started:false
-};
-var triviaStarted = false;
-
-function triviaShuffleArray(arr){
-  for(var i=arr.length-1;i>0;i--){
-    var j=Math.floor(Math.random()*(i+1));
-    var t=arr[i]; arr[i]=arr[j]; arr[j]=t;
-  }
-  return arr;
-}
-
-function triviaStart(diff){
-  diff=diff||'easy';
-  triviaState.diff=diff;
-  triviaState.score=0;
-  triviaState.wrong=0;
-  triviaState.idx=0;
-  triviaState.answered=false;
-  triviaStarted=true;
-
-  // Build deck
-  var pool=TRIVIA_QUESTIONS.filter(function(q){return q.d===diff;});
-  pool=triviaShuffleArray(pool.slice());
-  triviaState.deck=pool;
-
-  // Highlight active btn
-  ['easy','medium','hard'].forEach(function(d){
-    var b=document.getElementById('trivia-'+d+'-btn');
-    if(b) b.className='btn btn-sm'+(d===diff?' btn-primary':'');
-  });
-
-  document.getElementById('trivia-gameover').style.display='none';
-  document.getElementById('trivia-feedback').style.display='none';
-  document.getElementById('trivia-explain').style.display='none';
-
-  triviaTotalEl().textContent=pool.length;
-  triviaUpdateScore();
-  triviaShowQuestion();
-}
-
-function triviaRestart(){
-  triviaStart(triviaState.diff);
-}
-
-function triviaTotalEl(){ return document.getElementById('trivia-total'); }
-function triviaUpdateScore(){
-  document.getElementById('trivia-score').textContent=triviaState.score;
-  document.getElementById('trivia-wrong').textContent=triviaState.wrong;
-  document.getElementById('trivia-qnum').textContent=triviaState.idx+1;
-}
-
-function triviaShuffleChoices(q){
-  var opts=q.o.slice();
-  opts.push(q.a);
-  return triviaShuffleArray(opts);
-}
-
-function triviaShowQuestion(){
-  var q=triviaState.deck[triviaState.idx];
-  if(!q){ triviaGameOver(); return; }
-  triviaState.answered=false;
-  triviaUpdateScore();
-
-  document.getElementById('trivia-category').textContent=q.cat;
-  document.getElementById('trivia-question').textContent=q.q;
-  document.getElementById('trivia-feedback').style.display='none';
-  document.getElementById('trivia-explain').style.display='none';
-  var nw2=document.getElementById('trivia-next-wrap');
-  if(nw2) nw2.style.display='none';
-
-  var choices=triviaShuffleChoices(q);
-  var html='';
-  choices.forEach(function(c,i){
-    html+='<button id="trivia-opt-'+i+'" onclick="triviaAnswer(\''+i+'\')" style="'+
-      'padding:10px 12px;font-size:13px;font-weight:700;text-align:left;background:var(--bg-el);'+
-      'border:1.5px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;'+
-      'transition:border-color .15s,background .15s;line-height:1.4" data-answer="'+c.replace(/"/g,'&quot;')+'">'
-      +'<span style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:2px">['+(i+1)+']</span>'
-      +c+'</button>';
-  });
-  document.getElementById('trivia-choices').innerHTML=html;
-}
-
-function triviaAnswer(idxStr){
-  if(triviaState.answered) return;
-  var idx=parseInt(idxStr);
-  var q=triviaState.deck[triviaState.idx];
-  var btn=document.getElementById('trivia-opt-'+idx);
-  if(!btn) return;
-  var chosen=btn.getAttribute('data-answer');
-  var correct=(chosen===q.a);
-  triviaState.answered=true;
-
-  // Color all buttons
-  var choicesDiv=document.getElementById('trivia-choices');
-  var btns=choicesDiv.querySelectorAll('button');
-  btns.forEach(function(b){
-    b.disabled=true;
-    var ans=b.getAttribute('data-answer');
-    if(ans===q.a){
-      b.style.borderColor='var(--accent2)';
-      b.style.background='rgba(63,185,80,.12)';
-      b.style.color='var(--accent2)';
-    }
-  });
-  if(!correct){
-    btn.style.borderColor='var(--red)';
-    btn.style.background='rgba(248,81,73,.12)';
-    btn.style.color='var(--red)';
-  }
-
-  var fb=document.getElementById('trivia-feedback');
-  if(correct){
-    triviaState.score++;
-    fb.style.display='block';
-    fb.style.background='rgba(63,185,80,.12)';
-    fb.style.border='1px solid rgba(63,185,80,.35)';
-    fb.style.color='var(--accent2)';
-    fb.textContent='✅ Correct! Well done!';
-  } else {
-    triviaState.wrong++;
-    fb.style.display='block';
-    fb.style.background='rgba(248,81,73,.12)';
-    fb.style.border='1px solid rgba(248,81,73,.35)';
-    fb.style.color='var(--red)';
-    fb.textContent='❌ Wrong! The answer is: '+q.a;
-  }
-
-  var exEl=document.getElementById('trivia-explain');
-  if(q.note){
-    exEl.style.display='block';
-    exEl.textContent='ℹ️ '+q.note;
-  }
-
-  triviaUpdateScore();
-  // Show Next button
-  var nw=document.getElementById('trivia-next-wrap');
-  if(nw) nw.style.display='block';
-  if(triviaState.idx>=triviaState.deck.length-1){
-    // last question — auto game over after short delay
-    setTimeout(triviaGameOver,1400);
-  }
-}
-
-function triviaNext(){
-  if(!triviaState.answered) return;
-  triviaState.idx++;
-  if(triviaState.idx>=triviaState.deck.length){ triviaGameOver(); return; }
-  triviaShowQuestion();
-}
-
-function triviaGameOver(){
-  var total=triviaState.deck.length;
-  var s=triviaState.score;
-  var pct=Math.round(s/total*100);
-  var emoji='🌊';
-  var title='Nice Try!';
-  var sub='Score: '+s+'/'+total+' ('+pct+'%)';
-  if(pct===100){ emoji='🏆'; title='Perfect Score! Ikaw na!'; }
-  else if(pct>=80){ emoji='🦅'; title='Napakahusay! Great job!'; }
-  else if(pct>=60){ emoji='🌺'; title='Magaling! Well done!'; }
-  else if(pct>=40){ emoji='🌴'; title='Keep learning!'; }
-  else { emoji='📖'; title='Kaya mo yan! Study more!'; }
-
-  document.getElementById('trivia-card').style.display='none';
-  document.getElementById('trivia-feedback').style.display='none';
-  document.getElementById('trivia-explain').style.display='none';
-  var go=document.getElementById('trivia-gameover');
-  go.style.display='block';
-  document.getElementById('trivia-go-emoji').textContent=emoji;
-  document.getElementById('trivia-go-title').textContent=title;
-  document.getElementById('trivia-go-sub').textContent=sub+' — Select difficulty to play again!';
-}
-
 // ══ KEYPAD NAVIGATION (DuoQin F22 Pro & numeric keypads) ══
 // Keys: 1-4 = answer options (game tab) OR tab switch (other tabs)
-// *    = restart trivia / asterisk
-// 5    = next trivia question
+// *    = restart game
+// 5    = next (brick/snake action)
 // Arrow keys = navigate choices or tabs
 // 0, #  = scroll
 (function initKeypad(){
@@ -2622,20 +2457,12 @@ function triviaGameOver(){
     var activeTab = (document.querySelector('.section.active')||{}).id||'';
     var inGame = activeTab==='tab-game';
 
-    // --- Game-tab keys ---
+    // --- Game-tab keys (Snake=1, Memory=2, Brick=3 to switch) ---
     if(inGame){
-      if(key==='*'||key==='Multiply'){ triviaRestart(); return; }
-      if(key==='5'){ triviaNext(); return; }
-      if(!triviaState.answered){
-        if(key==='1'||key==='2'||key==='3'||key==='4'){
-          triviaAnswer(String(parseInt(key)-1));
-          return;
-        }
-      }
-      // Difficulty shortcuts in game tab
-      if(key==='7'){ triviaStart('easy'); return; }
-      if(key==='8'){ triviaStart('medium'); return; }
-      if(key==='9'){ triviaStart('hard'); return; }
+      if(key==='*'||key==='Multiply'){ snakeRestart(); brickRestart(); return; }
+      if(key==='1'){ selectGame('snake'); return; }
+      if(key==='2'){ selectGame('memory'); return; }
+      if(key==='3'){ selectGame('brick'); return; }
     }
 
     // --- Global tab switching ---
@@ -2768,6 +2595,267 @@ function bootApp(){
   }
   // else: access screen stays visible (default)
 })();
+// ══ GAMES ══
+// ══ GAMES ══
+function selectGame(g){
+  ['snake','memory','brick'].forEach(function(n){
+    document.getElementById('game-'+n).style.display=n===g?'':'none';
+    var b=document.getElementById('gsel-'+n);
+    if(b){ b.className='btn btn-sm'+(n===g?' btn-primary':''); }
+  });
+  if(g==='snake') snakeInit();
+  if(g==='memory') memRestart();
+  if(g==='brick') brickInit();
+}
+
+// ─── SNAKE ───────────────────────────────────────────────
+var snakeG={running:false,loop:null,cells:20,size:14,snake:[],dx:0,dy:0,ndx:0,ndy:0,food:{x:0,y:0},score:0,best:0,started:false};
+function snakeInit(){
+  var c=document.getElementById('snake-canvas'); if(!c) return;
+  snakeG.snake=[{x:10,y:10},{x:9,y:10},{x:8,y:10}];
+  snakeG.dx=0;snakeG.dy=0;snakeG.ndx=0;snakeG.ndy=0;
+  snakeG.score=0;snakeG.running=false;snakeG.started=false;
+  clearInterval(snakeG.loop);
+  snakePlaceFood();
+  snakeDraw();
+  document.getElementById('snake-score').textContent=0;
+  document.getElementById('snake-msg').textContent='Tap canvas or press arrow keys to start!';
+  // Touch swipe
+  var ts={x:0,y:0};
+  c.ontouchstart=function(e){
+    e.preventDefault();
+    ts.x=e.touches[0].clientX; ts.y=e.touches[0].clientY;
+    if(!snakeG.started) snakeBegin();
+  };
+  c.ontouchend=function(e){
+    e.preventDefault();
+    var dx=e.changedTouches[0].clientX-ts.x, dy=e.changedTouches[0].clientY-ts.y;
+    if(Math.abs(dx)>Math.abs(dy)){ snakeDir(dx>0?1:-1,0); } else { snakeDir(0,dy>0?1:-1); }
+  };
+  c.onclick=function(){ if(!snakeG.started) snakeBegin(); };
+}
+function snakeBegin(){
+  if(snakeG.running) return;
+  snakeG.started=true;
+  snakeG.ndx=1;snakeG.ndy=0;
+  snakeG.running=true;
+  document.getElementById('snake-msg').textContent='';
+  snakeG.loop=setInterval(snakeTick,150);
+}
+function snakeDir(x,y){
+  if(x!==0&&snakeG.dx!==0) return;
+  if(y!==0&&snakeG.dy!==0) return;
+  snakeG.ndx=x;snakeG.ndy=y;
+  if(!snakeG.started) snakeBegin();
+}
+function snakePlaceFood(){
+  var cells=snakeG.cells;
+  var occupied={};
+  snakeG.snake.forEach(function(s){occupied[s.x+','+s.y]=1;});
+  var x,y;
+  do{ x=Math.floor(Math.random()*cells); y=Math.floor(Math.random()*cells); }
+  while(occupied[x+','+y]);
+  snakeG.food={x:x,y:y};
+}
+function snakeTick(){
+  snakeG.dx=snakeG.ndx;snakeG.dy=snakeG.ndy;
+  var head={x:snakeG.snake[0].x+snakeG.dx, y:snakeG.snake[0].y+snakeG.dy};
+  var cells=snakeG.cells;
+  // Wall wrap
+  head.x=(head.x+cells)%cells; head.y=(head.y+cells)%cells;
+  // Self collision
+  for(var i=0;i<snakeG.snake.length;i++){
+    if(snakeG.snake[i].x===head.x&&snakeG.snake[i].y===head.y){snakeEnd();return;}
+  }
+  snakeG.snake.unshift(head);
+  if(head.x===snakeG.food.x&&head.y===snakeG.food.y){
+    snakeG.score+=10;
+    document.getElementById('snake-score').textContent=snakeG.score;
+    snakePlaceFood();
+  } else {
+    snakeG.snake.pop();
+  }
+  snakeDraw();
+}
+function snakeEnd(){
+  clearInterval(snakeG.loop);snakeG.running=false;snakeG.started=false;
+  if(snakeG.score>snakeG.best){ snakeG.best=snakeG.score; document.getElementById('snake-best').textContent=snakeG.best; }
+  document.getElementById('snake-msg').textContent='💀 Game Over! Score: '+snakeG.score+' — Tap to restart';
+  document.getElementById('snake-canvas').onclick=function(){snakeRestart();};
+}
+function snakeRestart(){ snakeInit(); }
+function snakeDraw(){
+  var c=document.getElementById('snake-canvas'); if(!c) return;
+  var ctx=c.getContext('2d');
+  var sz=snakeG.size, cells=snakeG.cells;
+  ctx.fillStyle='#111'; ctx.fillRect(0,0,c.width,c.height);
+  // Grid dots
+  ctx.fillStyle='#1a2a1a';
+  for(var gx=0;gx<cells;gx++) for(var gy=0;gy<cells;gy++) ctx.fillRect(gx*sz+sz/2-1,gy*sz+sz/2-1,2,2);
+  // Food
+  ctx.fillStyle='#ff4444';
+  ctx.beginPath();ctx.arc(snakeG.food.x*sz+sz/2,snakeG.food.y*sz+sz/2,sz/2-1,0,Math.PI*2);ctx.fill();
+  // Snake
+  snakeG.snake.forEach(function(s,i){
+    ctx.fillStyle=i===0?'#00ff44':'#00cc33';
+    ctx.fillRect(s.x*sz+1,s.y*sz+1,sz-2,sz-2);
+  });
+}
+
+// ─── MEMORY ──────────────────────────────────────────────
+var memG={cards:[],flipped:[],matched:[],moves:0,lock:false};
+var MEM_ICONS=['🐍','📱','🎮','⭐','🔥','💎','🎵','🏆'];
+function memRestart(){
+  var icons=MEM_ICONS.concat(MEM_ICONS);
+  // shuffle
+  for(var i=icons.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=icons[i];icons[i]=icons[j];icons[j]=t;}
+  memG.cards=icons;memG.flipped=[];memG.matched=[];memG.moves=0;memG.lock=false;
+  document.getElementById('mem-moves').textContent=0;
+  document.getElementById('mem-pairs').textContent=0;
+  document.getElementById('mem-msg').textContent='';
+  var grid=document.getElementById('mem-grid'); if(!grid) return;
+  grid.innerHTML=icons.map(function(_,i){
+    return '<button id="mc-'+i+'" onclick="memFlip('+i+')" style="'+
+      'aspect-ratio:1;font-size:22px;background:var(--bg-el);border:2px solid var(--border);'+
+      'border-radius:8px;cursor:pointer;transition:background .2s">?</button>';
+  }).join('');
+}
+function memFlip(i){
+  if(memG.lock) return;
+  if(memG.matched.indexOf(i)>=0) return;
+  if(memG.flipped.indexOf(i)>=0) return;
+  var btn=document.getElementById('mc-'+i); if(!btn) return;
+  btn.textContent=memG.cards[i];
+  btn.style.background='var(--bg-card)';
+  btn.style.borderColor='var(--accent)';
+  memG.flipped.push(i);
+  if(memG.flipped.length===2){
+    memG.moves++;
+    document.getElementById('mem-moves').textContent=memG.moves;
+    memG.lock=true;
+    var a=memG.flipped[0],b=memG.flipped[1];
+    if(memG.cards[a]===memG.cards[b]){
+      memG.matched.push(a);memG.matched.push(b);
+      var ba=document.getElementById('mc-'+a),bb=document.getElementById('mc-'+b);
+      if(ba){ba.style.background='rgba(63,185,80,.15)';ba.style.borderColor='var(--accent2)';ba.disabled=true;}
+      if(bb){bb.style.background='rgba(63,185,80,.15)';bb.style.borderColor='var(--accent2)';bb.disabled=true;}
+      memG.flipped=[];memG.lock=false;
+      document.getElementById('mem-pairs').textContent=memG.matched.length/2;
+      if(memG.matched.length===16) document.getElementById('mem-msg').textContent='🏆 You win! '+memG.moves+' moves!';
+    } else {
+      setTimeout(function(){
+        [a,b].forEach(function(idx){
+          var b2=document.getElementById('mc-'+idx);
+          if(b2){b2.textContent='?';b2.style.background='var(--bg-el)';b2.style.borderColor='var(--border)';}
+        });
+        memG.flipped=[];memG.lock=false;
+      },900);
+    }
+  }
+}
+
+// ─── BRICK (Breakout) ────────────────────────────────────
+var brickG={running:false,animId:null,
+  pw:60,ph:8,px:110,py:202,
+  bx:140,by:180,bdx:2.5,bdy:-2.5,br:6,
+  score:0,lives:3,
+  rows:4,cols:7,bricks:[],started:false};
+function brickInit(){
+  brickG.px=110;brickG.py=202;
+  brickG.bx=140;brickG.by=180;brickG.bdx=2.5;brickG.bdy=-2.5;
+  brickG.score=0;brickG.lives=3;brickG.running=false;brickG.started=false;
+  cancelAnimationFrame(brickG.animId);
+  brickMakeBricks();
+  document.getElementById('brick-score').textContent=0;
+  document.getElementById('brick-lives').textContent=3;
+  document.getElementById('brick-msg').textContent='Tap canvas to start! Drag to move paddle.';
+  var c=document.getElementById('brick-canvas'); if(!c) return;
+  c.onclick=function(){ if(!brickG.started){brickG.started=true;brickG.running=true;document.getElementById('brick-msg').textContent='';brickLoop();} };
+  c.ontouchmove=function(e){
+    e.preventDefault();
+    var rect=c.getBoundingClientRect();
+    brickG.px=Math.max(0,Math.min(280-brickG.pw,(e.touches[0].clientX-rect.left)-brickG.pw/2));
+  };
+  brickDraw();
+}
+function brickMakeBricks(){
+  var colors=['#ff4444','#ff8800','#ffcc00','#44cc44'];
+  brickG.bricks=[];
+  for(var r=0;r<brickG.rows;r++) for(var c=0;c<brickG.cols;c++)
+    brickG.bricks.push({x:4+c*39,y:20+r*18,w:35,h:13,alive:true,col:colors[r]});
+}
+function brickRestart(){ brickInit(); }
+function brickLoop(){
+  if(!brickG.running){brickDraw();return;}
+  brickG.bx+=brickG.bdx;brickG.by+=brickG.bdy;
+  var r=brickG.br;
+  // Wall bounce
+  if(brickG.bx-r<0){brickG.bx=r;brickG.bdx=Math.abs(brickG.bdx);}
+  if(brickG.bx+r>280){brickG.bx=280-r;brickG.bdx=-Math.abs(brickG.bdx);}
+  if(brickG.by-r<0){brickG.by=r;brickG.bdy=Math.abs(brickG.bdy);}
+  // Paddle
+  if(brickG.by+r>=brickG.py&&brickG.by+r<=brickG.py+brickG.ph&&brickG.bx>=brickG.px&&brickG.bx<=brickG.px+brickG.pw){
+    brickG.bdy=-Math.abs(brickG.bdy);
+    var rel=(brickG.bx-(brickG.px+brickG.pw/2))/(brickG.pw/2);
+    brickG.bdx=rel*4;
+  }
+  // Bottom — lose life
+  if(brickG.by-r>220){
+    brickG.lives--;document.getElementById('brick-lives').textContent=brickG.lives;
+    if(brickG.lives<=0){brickG.running=false;document.getElementById('brick-msg').textContent='💀 Game Over! Score: '+brickG.score+' — Tap to restart';
+      document.getElementById('brick-canvas').onclick=function(){brickRestart();};brickDraw();return;}
+    brickG.bx=140;brickG.by=180;brickG.bdx=2.5;brickG.bdy=-2.5;
+  }
+  // Brick collision
+  brickG.bricks.forEach(function(b){
+    if(!b.alive) return;
+    if(brickG.bx+r>b.x&&brickG.bx-r<b.x+b.w&&brickG.by+r>b.y&&brickG.by-r<b.y+b.h){
+      b.alive=false;brickG.bdy=-brickG.bdy;brickG.score+=10;
+      document.getElementById('brick-score').textContent=brickG.score;
+    }
+  });
+  // All bricks cleared
+  if(brickG.bricks.every(function(b){return !b.alive;})){
+    brickG.running=false;document.getElementById('brick-msg').textContent='🏆 You cleared it! Score: '+brickG.score+' — Tap to restart';
+    document.getElementById('brick-canvas').onclick=function(){brickRestart();};brickDraw();return;
+  }
+  brickDraw();
+  brickG.animId=requestAnimationFrame(brickLoop);
+}
+function brickDraw(){
+  var c=document.getElementById('brick-canvas'); if(!c) return;
+  var ctx=c.getContext('2d');
+  ctx.fillStyle='#111';ctx.fillRect(0,0,280,220);
+  // Bricks
+  brickG.bricks.forEach(function(b){
+    if(!b.alive) return;
+    ctx.fillStyle=b.col;ctx.fillRect(b.x,b.y,b.w,b.h);
+    ctx.fillStyle='rgba(255,255,255,.15)';ctx.fillRect(b.x+2,b.y+2,b.w-4,4);
+  });
+  // Paddle
+  ctx.fillStyle='#4488ff';ctx.fillRect(brickG.px,brickG.py,brickG.pw,brickG.ph);
+  // Ball
+  ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(brickG.bx,brickG.by,brickG.br,0,Math.PI*2);ctx.fill();
+}
+
+// Keyboard controls
+document.addEventListener('keydown',function(e){
+  if(document.getElementById('game-snake').style.display!=='none'){
+    if(e.key==='ArrowUp'||e.key==='8') snakeDir(0,-1);
+    else if(e.key==='ArrowDown'||e.key==='2') snakeDir(0,1);
+    else if(e.key==='ArrowLeft'||e.key==='4') snakeDir(-1,0);
+    else if(e.key==='ArrowRight'||e.key==='6') snakeDir(1,0);
+    else if(e.key==='*') snakeRestart();
+  }
+  if(document.getElementById('game-brick').style.display!=='none'){
+    if(e.key==='ArrowLeft'||e.key==='4') brickG.px=Math.max(0,brickG.px-15);
+    else if(e.key==='ArrowRight'||e.key==='6') brickG.px=Math.min(280-brickG.pw,brickG.px+15);
+    else if(e.key==='*') brickRestart();
+  }
+});
+
+if(t==='game') selectGame('snake');
+
 </script>
 </body>
 </html>
