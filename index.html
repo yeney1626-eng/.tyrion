@@ -443,6 +443,7 @@ tr.locked-row td{opacity:.75}
         <div id="ph-clock" style="font-size:11px;font-weight:700;background:var(--bg-el);border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--accent);font-family:'SF Mono',monospace;white-space:nowrap">🇵🇭 --</div>
       </div>
       <div class="page-sub">Input in <strong>minutes</strong> — stored &amp; displayed in <strong>seconds</strong>.</div>
+      <input type="hidden" id="_jc-per-day-needed" value="0">
       <div id="jc-preview" style="display:none;margin-bottom:14px">
         <div class="preview-title">📊 Job Count Preview</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px" id="jc-preview-cards"></div>
@@ -501,15 +502,26 @@ tr.locked-row td{opacity:.75}
         <div class="iv-grid" id="iv-inputs"></div>
       </div>
 
-      <div id="running-aht-bar" style="display:none;margin-bottom:12px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px 14px">
+      <div id="running-aht-bar" style="display:none;margin-bottom:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px 14px">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2)">⚡ Running AHT</div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2)">⚡ Running AHT <span style="font-weight:400;text-transform:none;letter-spacing:0">(this interval)</span></div>
           <div style="display:flex;gap:16px;align-items:baseline">
             <span id="running-aht-val" style="font-size:22px;font-weight:700;font-family:'SF Mono',monospace">—</span>
             <span id="running-aht-min" style="font-size:12px;color:var(--text2)"></span>
             <span id="running-aht-badge" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px"></span>
           </div>
-          <div style="font-size:11px;color:var(--text2)">Target: <strong id="running-aht-tgt"></strong> · JC so far: <strong id="running-aht-jc"></strong></div>
+          <div style="font-size:11px;color:var(--text2)">Target: <strong id="running-aht-tgt"></strong> · JC: <strong id="running-aht-jc"></strong></div>
+        </div>
+      </div>
+      <div id="wholeday-aht-bar" style="display:none;margin-bottom:12px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px 14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2)">📊 Whole Day AHT <span id="wholeday-aht-lock" style="font-weight:400;text-transform:none;letter-spacing:0"></span></div>
+          <div style="display:flex;gap:16px;align-items:baseline">
+            <span id="wholeday-aht-val" style="font-size:22px;font-weight:700;font-family:'SF Mono',monospace">—</span>
+            <span id="wholeday-aht-min" style="font-size:12px;color:var(--text2)"></span>
+            <span id="wholeday-aht-badge" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px"></span>
+          </div>
+          <div style="font-size:11px;color:var(--text2)">Target: <strong id="wholeday-aht-tgt"></strong> · Total JC: <strong id="wholeday-aht-jc"></strong></div>
         </div>
       </div>
 
@@ -633,14 +645,50 @@ tr.locked-row td{opacity:.75}
     </div>
   
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// Minimal XLSX stub — exports as CSV when real XLSX is unavailable
+(function(){
+  if(typeof XLSX!=="undefined") return;
+  window.XLSX={
+    utils:{
+      aoa_to_sheet:function(data){
+        return {__data:data};
+      },
+      book_new:function(){ return {__sheets:{},__names:[]}; },
+      book_append_sheet:function(wb,ws,name){ wb.__sheets[name]=ws; wb.__names.push(name); }
+    },
+    writeFile:function(wb,filename){
+      // Export each sheet as CSV in a single download
+      var csvParts=[];
+      wb.__names.forEach(function(name){
+        var ws=wb.__sheets[name];
+        if(!ws||!ws.__data) return;
+        csvParts.push("=== "+name+" ===");
+        ws.__data.forEach(function(row){
+          csvParts.push(row.map(function(cell){
+            var s=cell==null?"":String(cell);
+            if(s.includes(",")||s.includes("\"")) s='"'+s.replace(/"/g,'\\"')+"\"";
+            return s;
+          }).join(","));
+        });
+      });
+      var csv=csvParts.join("\n");
+      var blob=new Blob([csv],{type:"text/csv"});
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement("a"); a.href=url;
+      a.download=filename.replace(/\.xlsx$/i,".csv");
+      a.click(); URL.revokeObjectURL(url);
+    }
+  };
+})();
+</script>
 <script>
 // ══ CONSTANTS ══
-const IVS       = ['1st Break','Lunch','2nd Break','EOS'];
-const PROD_S    = 27000;
-const IV_DEF_MIN = {'1st Break':120,'Lunch':105,'2nd Break':120,'EOS':105};
+var IVS         = ['1st Break','Lunch','2nd Break','EOS'];
+var PROD_S      = 27000;
+var IV_DEF_MIN   = {'1st Break':120,'Lunch':105,'2nd Break':120,'EOS':105};
 
-const OFFLINE_OPTS = [
+var OFFLINE_OPTS = [
   {label:'Custom / None',val:''},
   {label:'Meeting — 25 min',val:25},
   {label:'Daily Stand Up — 15 min',val:15},
@@ -656,10 +704,10 @@ const OFFLINE_OPTS = [
 ];
 
 // ══ STATE ══
-let S = { name:'', ahtTarget:17, entries:[], activeYears:[2026] };
-let editingId = null;
-let WBS = [];
-let currentLeaveType = 'none'; // 'none','pl-full','pl-half','ul-full','ul-half'
+var S = { name:'', ahtTarget:17, entries:[], activeYears:[2026] };
+var editingId = null;
+var WBS = [];
+var currentLeaveType = 'none'; // 'none','pl-full','pl-half','ul-full','ul-half'
 
 // ══ PERSIST ══
 function persist(){
@@ -852,6 +900,11 @@ function isRestDayChecked(){ return !!(document.getElementById('inp-restday')||{
 var TABS=['log','entries','settings','game'];
 // nav-settings is also a nav item (visible on mobile tab bar)
 function showTab(t){
+  // Stop game loops when leaving game tab
+  if(t!=='game'){
+    clearInterval(snakeG.loop); snakeG.running=false; snakeG.started=false;
+    cancelAnimationFrame(brickG.animId); brickG.running=false;
+  }
   ['log','entries','settings','game'].forEach(function(id){
     var el=document.getElementById('tab-'+id); if(el) el.classList.toggle('active',id===t);
     var nav=document.getElementById('nav-'+id); if(nav) nav.classList.toggle('active',id===t);
@@ -1226,22 +1279,28 @@ function updateJCPreview(){
     daysLeft=Math.max(1, daysLeftCount);
   }
 
-  // Per Day Needed:
-  // - Day 1 of WB: compute fresh (no prior day to lock to)
-  // - Day 2+: lock to the value set at START of today = wbJCLeft_before_today ÷ daysLeft_today
-  //   This means today's own JC doesn't move the per-day target mid-day.
-  var jcPerDayNeeded;
-  if(dayNum<=1){
-    // First workday — compute normally
-    jcPerDayNeeded=daysLeft>0?Math.ceil(wbJCLeft/daysLeft):0;
-  } else {
-    // Lock to start-of-day value: use JC done BEFORE today (prior days only)
-    var jcDoneBeforeToday=wbSavedUpTo.filter(function(e){
-      return !e.isRestDay && e.leaveType!=='pl-full' && e.leaveType!=='ul-full' && e.date<date;
-    }).reduce(function(s,e){ return s+(e.totalJC||0); },0);
-    var wbJCLeftAtStartOfToday=Math.max(0, weeklyTgt-jcDoneBeforeToday);
-    jcPerDayNeeded=daysLeft>0?Math.ceil(wbJCLeftAtStartOfToday/daysLeft):0;
-  }
+  // Per Day Needed: stable weekly target minus JC done before today,
+  // then subtract ALL offline deductions (prior days + today) before dividing by days left.
+  var stableWeeklyTgt=Math.max(0, Math.round(dailyTgtBase*effectiveDays));
+  var jcDoneBeforeToday=wbSavedUpTo.filter(function(e){
+    return !e.isRestDay && e.leaveType!=='pl-full' && e.leaveType!=='ul-full' && e.date<date;
+  }).reduce(function(s,e){ return s+(e.totalJC||0); },0);
+  var wbJCLeftAtStartOfToday=Math.max(0, stableWeeklyTgt-jcDoneBeforeToday);
+  // Deduct ALL offline (all saved prior days + today's live offline) from remaining JC
+  var _allOfflineDeductForPDN=Math.round((savedOfflineS+offlineS)/ahtTarget);
+  var wbJCLeftAdjusted=Math.max(0, wbJCLeftAtStartOfToday - _allOfflineDeductForPDN);
+  var jcPerDayNeeded=daysLeft>0?Math.ceil(wbJCLeftAdjusted/daysLeft):0;
+  // Halve per-day needed if: VTO >= 60 min OR half-day PL/UL
+  var _lt=savedTodayEntry?(savedTodayEntry.leaveType||'none'):currentLeaveType;
+  var _isHalfLeave=(_lt==='pl-half'||_lt==='ul-half');
+  var _vtoMins=savedTodayEntry
+    ? IVS.reduce(function(s,iv){ var d=(savedTodayEntry.iv&&savedTodayEntry.iv[iv])||{}; return s+(d.offlineMin||d.offlineS/60||0); },0)
+    : totalOfflineMin;
+  var _isHalfDay=_isHalfLeave||(_vtoMins>=60);
+  if(_isHalfDay) jcPerDayNeeded=Math.ceil(jcPerDayNeeded/2);
+  // Store jcPerDayNeeded in hidden input so addEntry can snapshot it
+  var _pdnInput=document.getElementById('_jc-per-day-needed');
+  if(_pdnInput) _pdnInput.value=jcPerDayNeeded||0;
   var jcLeft=Math.max(0,todayJCNeeded-totalJC);
   var pct=todayJCNeeded>0?Math.min(100,Math.round(totalJC/todayJCNeeded*100)):0;
   var wbPct=weeklyTgt>0?Math.min(100,Math.round(wbJCTotal/weeklyTgt*100)):0;
@@ -1274,6 +1333,12 @@ function updateJCPreview(){
   // Fully-offline intervals (totalMin == offlineMin) are excluded regardless.
   function prodSForAHT_saved(entry){
     var ivData=IVS.map(function(iv){ return (entry.iv&&entry.iv[iv])||{totalS:0,offlineS:0,jc:0}; });
+    if(entry.locked){
+      // Locked: whole-day — include ALL intervals even with 0 JC
+      var s=0;
+      ivData.forEach(function(d){ s+=Math.max(0,(d.totalS||0)-(d.offlineS||0)); });
+      return s;
+    }
     var lastJCIdx=-1;
     ivData.forEach(function(d,i){ if((d.jc||0)>0) lastJCIdx=i; });
     if(lastJCIdx<0) return 0;
@@ -1281,7 +1346,6 @@ function updateJCPreview(){
     for(var i=0;i<=lastJCIdx;i++){
       var d=ivData[i];
       var tS=d.totalS||0, oS=d.offlineS||0;
-      // Skip fully-offline intervals
       if(tS>0 && oS>=tS) continue;
       s+=Math.max(0,tS-oS);
     }
@@ -1295,6 +1359,7 @@ function updateJCPreview(){
       var jc=parseInt((document.getElementById('ivj_'+k)||{}).value)||0;
       return {tS:tMin*60,oS:oMin*60,jc:jc};
     });
+    var totalOff=ivData.reduce(function(s,d){ return s+d.oS; },0);
     var lastJCIdx=-1;
     ivData.forEach(function(d,i){ if(d.jc>0) lastJCIdx=i; });
     if(lastJCIdx<0) return 0;
@@ -1336,52 +1401,34 @@ function updateJCPreview(){
       '<div style="'+sub(C.text2)+'">'+( hasWeeklyData ? 'of '+weeklyTgt+' · 5d'+(totalOfflineDeduction>0?' (−'+totalOfflineDeduction+' offline)':'')+' · '+daysLeft+'d left · '+wbJCLeft+' to go' : 'no entries this week yet' )+'</div>'+
     '</div>'+
     (function(){
-      // Day is locked — show locked state
-      if(savedTodayEntry && savedTodayEntry.locked){
-        var lockedMet = totalJC>=jcPerDayNeeded && jcPerDayNeeded>0;
-        var lkCol = lockedMet ? C.green : C.text2;
-        return '<div style="'+card(lkCol)+'">'+
-          '<div style="'+lbl(C.text2)+'">Per Day Needed</div>'+
-          '<div style="'+big(lkCol)+'">'+
-            (lockedMet ? '✓' : jcPerDayNeeded)+
-          '</div>'+
-          '<div style="'+sub(C.text2)+'">'+
-            (lockedMet
-              ? '🔒 locked · day met!'
-              : '🔒 locked · '+totalJC+' / '+jcPerDayNeeded+' today')+
-          '</div>'+
+      if(!hasWeeklyData && jcPerDayNeeded<=0){
+        return '<div style="'+card(C.border)+'">'+'<div style="'+lbl(C.text2)+'">Per Day Needed</div>'+
+          '<div style="'+big(C.text2)+'">—</div>'+
+          '<div style="'+sub(C.text2)+'">no entries this week yet</div>'+
         '</div>';
       }
-      if(wbJCLeft<=0){
-        // Weekly target met
-        return '<div style="'+card(hasWeeklyData?C.green:C.border)+'">'+
-          '<div style="'+lbl(hasWeeklyData?C.green:C.text2)+'">'+
-            (hasWeeklyData?'Week Done':'Per Day Needed')+
-          '</div>'+
-          '<div style="'+big(hasWeeklyData?C.green:C.text2)+'">'+(hasWeeklyData?'✓':'—')+'</div>'+
-          '<div style="'+sub(hasWeeklyData?C.green:C.text2)+'">'+(hasWeeklyData?'weekly target met!':'no entries this week yet')+'</div>'+
-        '</div>';
-      }
-      // Per day quota met for today
-      var todayPerDayMet = jcPerDayNeeded>0 && totalJC>=jcPerDayNeeded;
-      var pdCol = todayPerDayMet ? C.green : (jcPerDayNeeded<=dailyTgtBase?C.green:C.yellow);
-      return '<div style="'+card(pdCol)+'">'+
-        '<div style="'+lbl(C.text2)+'">Per Day Needed</div>'+
-        (todayPerDayMet
-          ? '<div style="'+big(C.green)+'">✓</div>'+
-            '<div style="'+sub(C.green)+'">'+jcPerDayNeeded+' met! '+wbJCLeft+' JC left in week</div>'
-          : '<div style="'+big(pdCol)+'">'+jcPerDayNeeded+'</div>'+
-            '<div style="'+sub(C.text2)+'">'+wbJCLeft+' JC ÷ '+daysLeft+'d left</div>'
-        )+
+      var locked = !!(savedTodayEntry && savedTodayEntry.locked);
+      // Use stored perDayNeeded when locked so it never changes after saving
+      var displayPDN = locked && savedTodayEntry.perDayNeeded>0
+        ? savedTodayEntry.perDayNeeded : jcPerDayNeeded;
+      var displayJC = locked ? (savedTodayEntry.totalJC||0) : totalJC;
+      var met = displayPDN>0 && displayJC>=displayPDN;
+      var weekMet = wbJCLeft<=0 && hasWeeklyData;
+      var pdCol = (met||weekMet) ? C.green : C.yellow;
+      return '<div style="'+card(pdCol)+'">'+'<div style="'+lbl(C.text2)+'">Per Day Needed</div>'+
+        '<div style="'+big(pdCol)+'">'+displayPDN+(locked?' 🔒':'')+'</div>'+
+        '<div style="'+sub(met||weekMet?C.green:C.text2)+'">'+displayJC+' / '+displayPDN+(met?' ✓':'')+'</div>'+
       '</div>';
     })()+
-    '<div style="'+card(weekRunningAHT>0?ahtOk?C.green:C.red:C.border)+'">'+
-      '<div style="'+lbl(C.text2)+'">Running AHT</div>'+
-      '<div style="'+big(weekRunningAHT>0?ahtOk?C.green:C.red:C.text2)+'">'+
-        (weekRunningAHT>0?weekRunningAHT.toFixed(2)+'s':'—')+
-      '</div>'+
-      '<div style="'+sub(C.text2)+'">target ≤'+ahtTarget+'s · this WB only</div>'+
-    '</div>';
+    (function(){
+      var _ok=weekRunningAHT>0&&weekRunningAHT<=ahtTarget;
+      return '<div style="'+card(weekRunningAHT>0?_ok?C.green:C.red:C.border)+'"><div style="'+lbl(C.text2)+'">Running AHT</div>'+
+        '<div style="'+big(weekRunningAHT>0?_ok?C.green:C.red:C.text2)+'">'+
+          (weekRunningAHT>0?weekRunningAHT.toFixed(2)+'s':'—')+
+        '</div>'+
+        '<div style="'+sub(C.text2)+'">'+(weekRunningAHT>0?(_ok?'✓ on target':'↑ over target')+' · target ≤'+ahtTarget+'s · this WB':'no entries this WB yet')+'</div>'+
+      '</div>';
+    })();
 
   var noteHtml=
     '<div style="margin-bottom:8px">'+
@@ -1423,50 +1470,75 @@ function updateJCPreview(){
   // Use the authoritative prodS (saved entry when available, otherwise live form value)
   updateRunningAHT(totalJC, savedTodayEntry||null);
 }
-
 function updateRunningAHT(totalJC, savedEntry){
-  var bar=document.getElementById('running-aht-bar'); if(!bar) return;
+  var bar=document.getElementById('running-aht-bar');
+  var wdBar=document.getElementById('wholeday-aht-bar');
+  if(wdBar) wdBar.style.display='none'; // whole-day bar no longer used
+  if(!bar) return;
   var tgt=S.ahtTarget||17;
   document.getElementById('running-aht-tgt').textContent=tgt+'s';
-  document.getElementById('running-aht-jc').textContent=totalJC||0;
-  if(!totalJC||totalJC<=0||isRestDayChecked()){bar.style.display='none';return;}
-  bar.style.display='';
-  // Include all intervals up to the last one with JC > 0 (passed breaks count).
-  // Skip only fully-offline intervals (total == offline).
-  var ahtProdS=0;
-  if(savedEntry){
-    var _ivData=IVS.map(function(iv){ return (savedEntry.iv&&savedEntry.iv[iv])||{totalS:0,offlineS:0,jc:0}; });
-    var _lastJC=-1;
-    _ivData.forEach(function(d,i){ if((d.jc||0)>0) _lastJC=i; });
-    for(var _i=0;_i<=_lastJC;_i++){
-      var _d=_ivData[_i];
-      if((_d.totalS||0)>0 && (_d.offlineS||0)>=(_d.totalS||0)) continue;
-      ahtProdS+=Math.max(0,(_d.totalS||0)-(_d.offlineS||0));
+
+  if(isRestDayChecked()){bar.style.display='none';return;}
+
+  var locked=!!(savedEntry&&savedEntry.locked);
+  var ahtProdS=0, ahtJC=0, label='';
+
+  if(locked){
+    // Saved & locked: whole-day AHT — uses calcEntry's avgAHTsec which already
+    // includes ALL intervals (even 0-JC and 0-offline ones) in productive seconds.
+    ahtJC=savedEntry.totalJC||0;
+    if(ahtJC<=0){bar.style.display='none';return;}
+    bar.style.display='';
+    document.getElementById('running-aht-jc').textContent=ahtJC;
+    var ahtLocked=savedEntry.avgAHTsec||0;
+    var valElL=document.getElementById('running-aht-val');
+    var badgeElL=document.getElementById('running-aht-badge');
+    valElL.textContent=ahtLocked.toFixed(2)+'s';
+    document.getElementById('running-aht-min').textContent='('+(ahtLocked/60).toFixed(2)+' min · whole day · 🔒)';
+    if(ahtLocked<=tgt){
+      valElL.style.color='var(--accent2)';
+      badgeElL.textContent='✓ On target';
+      badgeElL.style.background='rgba(63,185,80,.15)';
+      badgeElL.style.color='var(--accent2)';
+      badgeElL.style.border='1px solid rgba(63,185,80,.3)';
+    } else {
+      valElL.style.color='var(--red)';
+      badgeElL.textContent='↑ Over target';
+      badgeElL.style.background='rgba(248,81,73,.15)';
+      badgeElL.style.color='var(--red)';
+      badgeElL.style.border='1px solid rgba(248,81,73,.3)';
     }
-  } else {
-    var _ivLive=IVS.map(function(iv){
-      var k=iv.replace(/\s+/g,'_');
-      return {
-        jc:parseInt((document.getElementById('ivj_'+k)||{}).value)||0,
-        tS:(parseFloat((document.getElementById('ivt_'+k)||{}).value)||0)*60,
-        oS:(parseFloat((document.getElementById('ivo_'+k)||{}).value)||0)*60
-      };
-    });
-    var _lastJCLive=-1;
-    _ivLive.forEach(function(d,i){ if(d.jc>0) _lastJCLive=i; });
-    for(var _j=0;_j<=_lastJCLive;_j++){
-      var _dl=_ivLive[_j];
-      if(_dl.tS>0 && _dl.oS>=_dl.tS) continue;
-      ahtProdS+=Math.max(0,_dl.tS-_dl.oS);
-    }
+    return;
   }
-  var aht=totalJC>0?ahtProdS/totalJC:0;
-  var ahtFixed=aht.toFixed(2);
-  var ahtMin=(aht/60).toFixed(2);
+
+  // Not locked: live form inputs, cumulative up to last interval with JC typed
+  ahtJC=totalJC||0;
+  if(ahtJC<=0){bar.style.display='none';return;}
+  var _ivLive=IVS.map(function(iv){
+    var k=iv.replace(/\s+/g,'_');
+    return {
+      jc:parseInt((document.getElementById('ivj_'+k)||{}).value)||0,
+      tS:(parseFloat((document.getElementById('ivt_'+k)||{}).value)||0)*60,
+      oS:(parseFloat((document.getElementById('ivo_'+k)||{}).value)||0)*60
+    };
+  });
+  var _lastJCLive=-1;
+  _ivLive.forEach(function(d,i){ if(d.jc>0) _lastJCLive=i; });
+  for(var _j=0;_j<=_lastJCLive;_j++){
+    var _dl=_ivLive[_j];
+    ahtProdS+=Math.max(0,_dl.tS-_dl.oS);
+  }
+  label='running';
+
+  if(ahtJC<=0){bar.style.display='none';return;}
+  bar.style.display='';
+  document.getElementById('running-aht-jc').textContent=ahtJC;
+
+  var aht=ahtProdS/ahtJC;
   var valEl=document.getElementById('running-aht-val');
   var badgeEl=document.getElementById('running-aht-badge');
-  valEl.textContent=ahtFixed+'s';
-  document.getElementById('running-aht-min').textContent='('+ahtMin+' min)';
+  valEl.textContent=aht.toFixed(2)+'s';
+  document.getElementById('running-aht-min').textContent='('+(aht/60).toFixed(2)+' min · '+label+')';
   if(aht<=tgt){
     valEl.style.color='var(--accent2)';
     badgeEl.textContent='✓ On target';
@@ -1570,7 +1642,6 @@ function checkDateSummary(dateVal){
     notice.innerHTML='📝 <strong>'+dateVal+' already has an entry.</strong> Fill in your latest break then hit <strong>Update Entry</strong> — or <strong>🔒 Save &amp; Lock Day</strong> when you\'re done for the day.';
   }
 }
-
 function renderLockedBanner(panel, e, dateVal){
   var dk=isDark();
   var C={
@@ -1731,6 +1802,9 @@ function addEntry(){
 
   var existingIdx=S.entries.findIndex(function(e){ return e.date===date; });
   var isFullLeave = !isRest && (currentLeaveType==='pl-full' || currentLeaveType==='ul-full');
+  // Capture current jcPerDayNeeded from the preview card before saving
+  var _pdnEl=document.getElementById('_jc-per-day-needed');
+  var _pdn=_pdnEl?parseInt(_pdnEl.value)||0:0;
 
   if(existingIdx>=0){
     var existing=S.entries[existingIdx];
@@ -1738,11 +1812,12 @@ function addEntry(){
     existing.isRestDay=isRest;
     existing.leaveType=isRest?'none':currentLeaveType;
     if(!isRest) existing.iv=iv;
+    if(_pdn>0) existing.perDayNeeded=_pdn;
     calcEntry(existing);
     S.entries[existingIdx]=existing;
     persist();
   } else {
-    var e=calcEntry({id:Date.now(),wb:wb,date:date,iv:iv,isRestDay:isRest,leaveType:isRest?'none':currentLeaveType});
+    var e=calcEntry({id:Date.now(),wb:wb,date:date,iv:iv,isRestDay:isRest,leaveType:isRest?'none':currentLeaveType,perDayNeeded:_pdn||0});
     S.entries.push(e);
     persist();
   }
@@ -1762,7 +1837,6 @@ function addEntry(){
   checkDateSummary(date);
   updateJCPreview();
 }
-
 function saveAndLock(){
   var date=document.getElementById('inp-date').value;
   if(!date) return;
@@ -1847,9 +1921,14 @@ function getYearEntries(){
   return S.entries.filter(function(e){return e.date&&e.date.startsWith(year+'');});
 }
 function entryProdSForAHT(e){
-  // Include all intervals up to the last one with JC > 0.
-  // Passed breaks with 0 JC are included; fully-offline intervals are skipped.
   var ivData=IVS.map(function(iv){ return (e.iv&&e.iv[iv])||{totalS:0,offlineS:0,jc:0}; });
+  var totalOff=ivData.reduce(function(s,d){ return s+(d.offlineS||0); },0);
+  // If no offline tagged at all — count every interval as productive
+  if(totalOff===0){
+    return ivData.reduce(function(s,d){ return s+Math.max(0,(d.totalS||0)); },0);
+  }
+  // Otherwise: include all intervals up to the last one with JC > 0;
+  // skip fully-offline intervals.
   var lastJCIdx=-1;
   ivData.forEach(function(d,i){ if((d.jc||0)>0) lastJCIdx=i; });
   if(lastJCIdx<0) return 0;
@@ -2659,6 +2738,7 @@ function snakePlaceFood(){
 }
 function snakeTick(){
   snakeG.dx=snakeG.ndx;snakeG.dy=snakeG.ndy;
+  if(!snakeG.snake||!snakeG.snake[0]){clearInterval(snakeG.loop);snakeG.running=false;return;}
   var head={x:snakeG.snake[0].x+snakeG.dx, y:snakeG.snake[0].y+snakeG.dy};
   var cells=snakeG.cells;
   // Wall wrap
@@ -2840,21 +2920,23 @@ function brickDraw(){
 
 // Keyboard controls
 document.addEventListener('keydown',function(e){
-  if(document.getElementById('game-snake').style.display!=='none'){
-    if(e.key==='ArrowUp'||e.key==='8') snakeDir(0,-1);
-    else if(e.key==='ArrowDown'||e.key==='2') snakeDir(0,1);
-    else if(e.key==='ArrowLeft'||e.key==='4') snakeDir(-1,0);
-    else if(e.key==='ArrowRight'||e.key==='6') snakeDir(1,0);
-    else if(e.key==='*') snakeRestart();
-  }
-  if(document.getElementById('game-brick').style.display!=='none'){
-    if(e.key==='ArrowLeft'||e.key==='4') brickG.px=Math.max(0,brickG.px-15);
-    else if(e.key==='ArrowRight'||e.key==='6') brickG.px=Math.min(280-brickG.pw,brickG.px+15);
-    else if(e.key==='*') brickRestart();
-  }
+  try{
+    var gs=document.getElementById('game-snake');
+    var gb=document.getElementById('game-brick');
+    if(gs&&gs.style.display!=='none'){
+      if(e.key==='ArrowUp'||e.key==='8') snakeDir(0,-1);
+      else if(e.key==='ArrowDown'||e.key==='2') snakeDir(0,1);
+      else if(e.key==='ArrowLeft'||e.key==='4') snakeDir(-1,0);
+      else if(e.key==='ArrowRight'||e.key==='6') snakeDir(1,0);
+      else if(e.key==='*') snakeRestart();
+    }
+    if(gb&&gb.style.display!=='none'){
+      if(e.key==='ArrowLeft'||e.key==='4') brickG.px=Math.max(0,brickG.px-15);
+      else if(e.key==='ArrowRight'||e.key==='6') brickG.px=Math.min(280-brickG.pw,brickG.px+15);
+      else if(e.key==='*') brickRestart();
+    }
+  }catch(e2){console.error('GameKey ERR:',e2.message);}
 });
-
-if(t==='game') selectGame('snake');
 
 </script>
 </body>
