@@ -742,6 +742,43 @@ function getLatestEntry(){
   }, null);
 }
 
+// Returns the YYYY-MM-DD of the Saturday on/before the given date — i.e.
+// the start of that entry's work week (work week = Sat through Fri).
+function getWeekStart(dateStr){
+  var p=dateStr.split('-'); if(p.length!==3) return dateStr;
+  var d=new Date(Date.UTC(+p[0],+p[1]-1,+p[2]));
+  var dow=d.getUTCDay(); // 0=Sun,1=Mon,...,6=Sat
+  var diff=(dow+1)%7; // days since most recent Saturday
+  d.setUTCDate(d.getUTCDate()-diff);
+  return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
+}
+
+// Aggregates every locked entry in the same work week as dateStr into a
+// single weekly totals object: total JC across the week, total productive
+// seconds across the week, and the resulting blended AHT for the week.
+function getWeeklyAggregate(dateStr){
+  var weekStart=getWeekStart(dateStr);
+  var weekEnd=(function(){
+    var p=weekStart.split('-'); var d=new Date(Date.UTC(+p[0],+p[1]-1,+p[2]));
+    d.setUTCDate(d.getUTCDate()+6);
+    return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
+  })();
+  var weekEntries=(S.entries||[]).filter(function(e){
+    return e.locked && !e.isRestDay && e.date>=weekStart && e.date<=weekEnd;
+  });
+  var totalJC=weekEntries.reduce(function(s,e){ return s+(e.totalJC||0); },0);
+  var totalProdS=weekEntries.reduce(function(s,e){ return s+(e.totalProdS||0); },0);
+  var weeklyAHT=totalJC>0 ? (totalProdS/totalJC) : 0;
+  return {
+    weekStart:weekStart,
+    weekEnd:weekEnd,
+    totalJC:totalJC,
+    totalProdS:totalProdS,
+    weeklyAHT:weeklyAHT,
+    daysLocked:weekEntries.length
+  };
+}
+
 // Pulls the exact text shown in the Entries table for one entry, so the backup
 // is always a literal mirror of what's on screen (WB, Date, per-interval JC,
 // Total JC, Prod(s), Avg AHT(s), Target, Allow., Status), instead of a separate
@@ -820,6 +857,35 @@ function backupEntryToSheet(entry){
   });
 }
 
+// Sends that work week's running totals (week start date, total JC, blended
+// AHT) to the Weekly Running Summary tab. Called any time a day in that week
+// gets locked, so the weekly row always reflects the latest state of every
+// locked day within it — recomputed fresh each time, not incremented, so
+// edits/deletes earlier in the week stay correctly reflected too.
+function backupWeeklySummaryToSheet(dateStr){
+  if(!SHEET_BACKUP_URL || !dateStr) return;
+  var agg=getWeeklyAggregate(dateStr);
+  var payload={
+    weeklySummary:true,
+    user: S.name || '',
+    weekStart: agg.weekStart,
+    weekEnd: agg.weekEnd,
+    totalJC: agg.totalJC,
+    totalProdS: agg.totalProdS,
+    weeklyAHT: agg.weeklyAHT.toFixed(2),
+    target: S.ahtTarget||17,
+    daysLocked: agg.daysLocked
+  };
+  console.log('Weekly summary payload:', payload);
+  fetch(SHEET_BACKUP_URL, {
+    method: 'POST',
+    headers: {'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify(payload)
+  }).catch(function(err){
+    console.error('Weekly summary backup failed:', err);
+  });
+}
+
 // Sends every saved entry (locked or not) to the sheet in chunks, so existing
 // history can be backfilled, not just entries saved going forward.
 function backupAllEntries(){
@@ -843,8 +909,7 @@ function backupAllEntries(){
   var sentCount=0, failed=false;
   function sendNext(idx){
     if(idx>=chunks.length){
-      if(btn){ btn.disabled=false; btn.textContent='☁️ Backup All Entries'; }
-      setSyncStatus(failed?'error':'ok');
+      sendWeeklyRollups();
       return;
     }
     fetch(SHEET_BACKUP_URL, {
@@ -871,6 +936,45 @@ function backupAllEntries(){
       sendNext(idx+1);
     });
   }
+
+  // After all entry rows are sent, recompute and send every distinct week's
+  // rollup once each (not per-entry), so the Weekly Running Summary tab gets
+  // backfilled too without sending the same week multiple times.
+  function sendWeeklyRollups(){
+    var weekStarts={};
+    all.forEach(function(e){ if(e.locked && !e.isRestDay && e.date) weekStarts[getWeekStart(e.date)]=true; });
+    var weeks=Object.keys(weekStarts);
+    if(!weeks.length){
+      if(btn){ btn.disabled=false; btn.textContent='☁️ Backup All Entries'; }
+      setSyncStatus(failed?'error':'ok');
+      return;
+    }
+    var weeklyPayloads=weeks.map(function(ws){
+      var agg=getWeeklyAggregate(ws);
+      return {
+        user: S.name||'', weekStart: agg.weekStart, weekEnd: agg.weekEnd,
+        totalJC: agg.totalJC, totalProdS: agg.totalProdS,
+        weeklyAHT: agg.weeklyAHT.toFixed(2), target: S.ahtTarget||17, daysLocked: agg.daysLocked
+      };
+    });
+    fetch(SHEET_BACKUP_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ weeklyBatch: weeklyPayloads })
+    }).then(function(res){
+      return res.text().then(function(text){
+        var parsed=null; try{ parsed=JSON.parse(text); }catch(e){}
+        if(!(parsed && parsed.status==='ok')){ console.error('Weekly rollup batch not ok:', res.status, text); failed=true; }
+        if(btn){ btn.disabled=false; btn.textContent='☁️ Backup All Entries'; }
+        setSyncStatus(failed?'error':'ok');
+      });
+    }).catch(function(err){
+      console.error('Weekly rollup batch fetch failed:', err);
+      if(btn){ btn.disabled=false; btn.textContent='☁️ Backup All Entries'; }
+      setSyncStatus('error');
+    });
+  }
+
   sendNext(0);
 }
 
@@ -2001,7 +2105,7 @@ function addEntry(){
   // PL full / UL full: auto-lock and advance to next day immediately
   if(isFullLeave){
     var lockIdx=S.entries.findIndex(function(e){return e.date===date;});
-    if(lockIdx>=0){ S.entries[lockIdx].locked=true; S.entries[lockIdx].lockedAt=Date.now(); persist(); backupEntryToSheet(getLatestEntry()); }
+    if(lockIdx>=0){ S.entries[lockIdx].locked=true; S.entries[lockIdx].lockedAt=Date.now(); persist(); backupEntryToSheet(getLatestEntry()); backupWeeklySummaryToSheet(S.entries[lockIdx].date); }
     shiftDate(1);
     return;
   }
@@ -2028,7 +2132,7 @@ function saveAndLock(){
     if(!existingFullLeave) addEntry();
     else{
       var idx2=S.entries.findIndex(function(e){return e.date===date;});
-      if(idx2>=0){ S.entries[idx2].locked=true; S.entries[idx2].lockedAt=Date.now(); persist(); backupEntryToSheet(getLatestEntry()); }
+      if(idx2>=0){ S.entries[idx2].locked=true; S.entries[idx2].lockedAt=Date.now(); persist(); backupEntryToSheet(getLatestEntry()); backupWeeklySummaryToSheet(S.entries[idx2].date); }
       shiftDate(1);
     }
     return;
@@ -2040,6 +2144,7 @@ function saveAndLock(){
   S.entries[idx].lockedAt=Date.now();
   persist();
   backupEntryToSheet(getLatestEntry());
+  backupWeeklySummaryToSheet(S.entries[idx].date);
   shiftDate(1);
 }
 
@@ -2238,8 +2343,12 @@ function saveEdit(id){
     e.iv[iv]={totalMin:tMin,offlineMin:oMin,totalS:minToSec(tMin),offlineS:minToSec(oMin),jc:jc};
   });
   calcEntry(e); persist(); editingId=null; renderEntries();
-  if(oldDate && oldDate!==e.date) deleteEntryFromSheet(S.name, oldDate);
+  if(oldDate && oldDate!==e.date){
+    deleteEntryFromSheet(S.name, oldDate);
+    backupWeeklySummaryToSheet(oldDate); // recompute the week this entry left
+  }
   backupEntryToSheet(e);
+  backupWeeklySummaryToSheet(e.date); // recompute the week this entry is now in
 }
 function deleteEntry(id){
   id=Number(id);
@@ -2248,7 +2357,7 @@ function deleteEntry(id){
     S.entries=S.entries.filter(function(e){return Number(e.id)!==id;}); persist(); renderEntries();
     var dateInp=document.getElementById('inp-date');
     if(dateInp) checkDateSummary(dateInp.value);
-    if(target) deleteEntryFromSheet(S.name, target.date);
+    if(target){ deleteEntryFromSheet(S.name, target.date); backupWeeklySummaryToSheet(target.date); }
   }, '🗑 Delete', true);
 }
 
@@ -2668,8 +2777,12 @@ function saveEditModal(){
   // Refresh date summary if log tab is open
   var dateInp=document.getElementById('inp-date');
   if(dateInp) checkDateSummary(dateInp.value);
-  if(oldDate && oldDate!==e.date) deleteEntryFromSheet(S.name, oldDate);
+  if(oldDate && oldDate!==e.date){
+    deleteEntryFromSheet(S.name, oldDate);
+    backupWeeklySummaryToSheet(oldDate);
+  }
   backupEntryToSheet(e);
+  backupWeeklySummaryToSheet(e.date);
 }
 
 // ══ CONFIRM MODAL ══
@@ -2697,7 +2810,7 @@ function deleteEntryConfirm(id){
     // Refresh date summary
     var dateInp=document.getElementById('inp-date');
     if(dateInp) checkDateSummary(dateInp.value);
-    if(target) deleteEntryFromSheet(S.name, target.date);
+    if(target){ deleteEntryFromSheet(S.name, target.date); backupWeeklySummaryToSheet(target.date); }
   }, '🗑 Delete', true);
 }
 
