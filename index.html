@@ -563,6 +563,7 @@ tr.locked-row td{opacity:.75}
         <select id="filter-year" onchange="renderEntries()"></select>
         <button class="btn btn-sm" onclick="exportXLSX()">⬇ Export Excel</button>
         <button class="btn btn-sm btn-primary" onclick="openImportModal()">⬆ Import Excel</button>
+        <button class="btn btn-sm" id="btn-backup-all" onclick="backupAllEntries()">☁️ Backup All Entries</button>
       </div>
 
       <div class="tbl-wrap">
@@ -729,25 +730,37 @@ var currentLeaveType = 'none'; // 'none','pl-full','pl-half','ul-full','ul-half'
 // ══ CLOUD BACKUP (Google Sheets via Apps Script) ══
 var SHEET_BACKUP_URL = 'https://script.google.com/macros/s/AKfycbxDa_g78fDtmSTx0mIneG65BKnCWvK551nezJkCt2qsVYEdJXqiRyXJCdLuLAb411nf/exec';
 
+function entryToBackupRow(entry){
+  var ivJC = IVS.map(function(iv){
+    return (entry.iv && entry.iv[iv]) ? (entry.iv[iv].jc||0) : 0;
+  });
+  var leaveLabel = ({
+    'pl-full':'PL Full','pl-half':'PL Half','ul-full':'UL Full','ul-half':'UL Half','none':''
+  })[entry.leaveType||'none'] || '';
+  return {
+    user: S.name || '',
+    wb: entry.wb || '',
+    date: entry.date || '',
+    isRestDay: !!entry.isRestDay,
+    ivJC: ivJC,              // [1st Break JC, Lunch JC, 2nd Break JC, EOS JC] — same order as IVS/table columns
+    totalJC: entry.totalJC || 0,
+    prodS: entry.totalProdS || 0,
+    avgAHTsec: entry.avgAHTsec || 0,
+    target: entry.tgt || 0,
+    allowance: entry.allowance || 0,
+    status: entry.isRestDay ? 'Rest Day' : (entry.status || ''),
+    leave: leaveLabel,
+    locked: !!entry.locked
+  };
+}
+
 function backupEntryToSheet(entry){
   if(!SHEET_BACKUP_URL || !entry) return;
-  var payload = {
-    user: S.name || '',
-    date: entry.date || '',
-    wb: entry.wb || '',
-    ahtTarget: S.ahtTarget || 17,
-    jcTotal: entry.totalJC || 0,
-    prodSeconds: entry.totalProdS || 0,
-    isRestDay: !!entry.isRestDay,
-    leaveType: entry.leaveType || 'none',
-    locked: !!entry.locked,
-    raw: entry
-  };
   setSyncStatus('syncing');
   fetch(SHEET_BACKUP_URL, {
     method: 'POST',
     headers: {'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify(payload)
+    body: JSON.stringify(entryToBackupRow(entry))
   }).then(function(res){
     return res.text().then(function(text){
       var parsed=null;
@@ -763,6 +776,60 @@ function backupEntryToSheet(entry){
     console.error('Backup fetch failed:', err);
     setSyncStatus('error');
   });
+}
+
+// Sends every saved entry (locked or not) to the sheet in chunks, so existing
+// history can be backfilled, not just entries saved going forward.
+function backupAllEntries(){
+  if(!SHEET_BACKUP_URL) return;
+  var all=(S.entries||[]).slice();
+  if(!all.length){
+    setSyncStatus('error');
+    var el=document.getElementById('sync-status-dot');
+    if(el){ el.textContent='No entries to back up'; el.style.color='var(--text2)'; }
+    return;
+  }
+  var rows=all.map(entryToBackupRow);
+  var CHUNK=25; // keep individual requests small/fast
+  var chunks=[];
+  for(var i=0;i<rows.length;i+=CHUNK) chunks.push(rows.slice(i,i+CHUNK));
+
+  var btn=document.getElementById('btn-backup-all');
+  if(btn){ btn.disabled=true; btn.textContent='☁️ Backing up 0/'+rows.length+'…'; }
+  setSyncStatus('syncing');
+
+  var sentCount=0, failed=false;
+  function sendNext(idx){
+    if(idx>=chunks.length){
+      if(btn){ btn.disabled=false; btn.textContent='☁️ Backup All Entries'; }
+      setSyncStatus(failed?'error':'ok');
+      return;
+    }
+    fetch(SHEET_BACKUP_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ batch: chunks[idx] })
+    }).then(function(res){
+      return res.text().then(function(text){
+        var parsed=null;
+        try{ parsed=JSON.parse(text); }catch(e){}
+        if(!(parsed && parsed.status==='ok')){
+          console.error('Batch backup response not ok:', res.status, text);
+          failed=true;
+        }
+        sentCount+=chunks[idx].length;
+        if(btn) btn.textContent='☁️ Backing up '+sentCount+'/'+rows.length+'…';
+        sendNext(idx+1);
+      });
+    }).catch(function(err){
+      console.error('Batch backup fetch failed:', err);
+      failed=true;
+      sentCount+=chunks[idx].length;
+      if(btn) btn.textContent='☁️ Backing up '+sentCount+'/'+rows.length+'…';
+      sendNext(idx+1);
+    });
+  }
+  sendNext(0);
 }
 
 function setSyncStatus(state){
