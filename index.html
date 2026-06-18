@@ -747,9 +747,11 @@ function getLatestEntry(){
 // Total JC, Prod(s), Avg AHT(s), Target, Allow., Status), instead of a separate
 // re-derivation that can drift out of sync with the displayed columns.
 function entryToBackupRow(entry){
-  var tmp=document.createElement('tbody');
-  tmp.innerHTML = buildViewRow(entry);
-  var tds = tmp.querySelectorAll('td');
+  var tmpTable=document.createElement('table');
+  var tmpBody=document.createElement('tbody');
+  tmpTable.appendChild(tmpBody);
+  tmpBody.innerHTML = buildViewRow(entry);
+  var tds = tmpBody.querySelectorAll('td');
   var cellText = function(i){ return tds[i] ? tds[i].textContent.trim() : ''; };
 
   if(entry.isRestDay){
@@ -783,11 +785,13 @@ function entryToBackupRow(entry){
 
 function backupEntryToSheet(entry){
   if(!SHEET_BACKUP_URL || !entry) return;
+  var row=entryToBackupRow(entry);
+  console.log('Backup payload:', row);
   setSyncStatus('syncing');
   fetch(SHEET_BACKUP_URL, {
     method: 'POST',
     headers: {'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify(entryToBackupRow(entry))
+    body: JSON.stringify(row)
   }).then(function(res){
     return res.text().then(function(text){
       var parsed=null;
