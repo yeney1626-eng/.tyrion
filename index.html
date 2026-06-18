@@ -783,6 +783,17 @@ function entryToBackupRow(entry){
   };
 }
 
+function deleteEntryFromSheet(user, date){
+  if(!SHEET_BACKUP_URL || !date) return;
+  fetch(SHEET_BACKUP_URL, {
+    method: 'POST',
+    headers: {'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ action:'delete', user: user||'', date: date })
+  }).catch(function(err){
+    console.error('Delete-from-sheet fetch failed:', err);
+  });
+}
+
 function backupEntryToSheet(entry){
   if(!SHEET_BACKUP_URL || !entry) return;
   var row=entryToBackupRow(entry);
@@ -2216,6 +2227,7 @@ function startEdit(id){openEditModal(id);}
 function cancelEdit(){closeEditModal();}
 function saveEdit(id){
   id=Number(id); var e=S.entries.find(function(x){return Number(x.id)===id;}); if(!e) return;
+  var oldDate=e.date;
   e.wb=document.getElementById('ed-wb').value||'—';
   e.date=document.getElementById('ed-date').value;
   IVS.forEach(function(iv){
@@ -2226,13 +2238,17 @@ function saveEdit(id){
     e.iv[iv]={totalMin:tMin,offlineMin:oMin,totalS:minToSec(tMin),offlineS:minToSec(oMin),jc:jc};
   });
   calcEntry(e); persist(); editingId=null; renderEntries();
+  if(oldDate && oldDate!==e.date) deleteEntryFromSheet(S.name, oldDate);
+  backupEntryToSheet(e);
 }
 function deleteEntry(id){
   id=Number(id);
   showConfirm('Delete this entry? This cannot be undone.', function(){
+    var target=S.entries.find(function(e){return Number(e.id)===id;});
     S.entries=S.entries.filter(function(e){return Number(e.id)!==id;}); persist(); renderEntries();
     var dateInp=document.getElementById('inp-date');
     if(dateInp) checkDateSummary(dateInp.value);
+    if(target) deleteEntryFromSheet(S.name, target.date);
   }, '🗑 Delete', true);
 }
 
@@ -2636,6 +2652,7 @@ function closeEditModal(){
 function saveEditModal(){
   if(!editModalId) return;
   var e=S.entries.find(function(x){return Number(x.id)===editModalId;}); if(!e) return;
+  var oldDate=e.date;
   e.date=document.getElementById('em-date').value||e.date;
   e.wb=document.getElementById('em-wb').value||e.wb;
   var ltEl=document.getElementById('em-lt'); if(ltEl) e.leaveType=ltEl.value||'none';
@@ -2651,6 +2668,8 @@ function saveEditModal(){
   // Refresh date summary if log tab is open
   var dateInp=document.getElementById('inp-date');
   if(dateInp) checkDateSummary(dateInp.value);
+  if(oldDate && oldDate!==e.date) deleteEntryFromSheet(S.name, oldDate);
+  backupEntryToSheet(e);
 }
 
 // ══ CONFIRM MODAL ══
@@ -2671,12 +2690,14 @@ function closeConfirm(ok){
 function deleteEntryConfirm(id){
   id=Number(id);
   showConfirm('Delete this entry? This cannot be undone.', function(){
+    var target=S.entries.find(function(e){return Number(e.id)===id;});
     S.entries=S.entries.filter(function(e){return Number(e.id)!==id;});
     persist();
     renderEntries();
     // Refresh date summary
     var dateInp=document.getElementById('inp-date');
     if(dateInp) checkDateSummary(dateInp.value);
+    if(target) deleteEntryFromSheet(S.name, target.date);
   }, '🗑 Delete', true);
 }
 
