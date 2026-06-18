@@ -730,26 +730,53 @@ var currentLeaveType = 'none'; // 'none','pl-full','pl-half','ul-full','ul-half'
 // ══ CLOUD BACKUP (Google Sheets via Apps Script) ══
 var SHEET_BACKUP_URL = 'https://script.google.com/macros/s/AKfycbxDa_g78fDtmSTx0mIneG65BKnCWvK551nezJkCt2qsVYEdJXqiRyXJCdLuLAb411nf/exec';
 
+// Returns the entry with the most recent date across all years — i.e. the
+// entry that appears first/top in the Entries table regardless of which
+// year filter happens to be selected.
+function getLatestEntry(){
+  if(!S.entries || !S.entries.length) return null;
+  return S.entries.reduce(function(latest,e){
+    if(!e.date) return latest;
+    if(!latest || e.date > latest.date) return e;
+    return latest;
+  }, null);
+}
+
+// Pulls the exact text shown in the Entries table for one entry, so the backup
+// is always a literal mirror of what's on screen (WB, Date, per-interval JC,
+// Total JC, Prod(s), Avg AHT(s), Target, Allow., Status), instead of a separate
+// re-derivation that can drift out of sync with the displayed columns.
 function entryToBackupRow(entry){
-  var ivJC = IVS.map(function(iv){
-    return (entry.iv && entry.iv[iv]) ? (entry.iv[iv].jc||0) : 0;
-  });
-  var leaveLabel = ({
-    'pl-full':'PL Full','pl-half':'PL Half','ul-full':'UL Full','ul-half':'UL Half','none':''
-  })[entry.leaveType||'none'] || '';
+  var tmp=document.createElement('tbody');
+  tmp.innerHTML = buildViewRow(entry);
+  var tds = tmp.querySelectorAll('td');
+  var cellText = function(i){ return tds[i] ? tds[i].textContent.trim() : ''; };
+
+  if(entry.isRestDay){
+    return {
+      user: S.name || '',
+      wb: cellText(0),
+      date: cellText(1),
+      ivJC: ['—','—','—','—'],
+      totalJC: '—', prodS: '—', avgAHTsec: '—', target: '—', allowance: '—',
+      status: 'Rest Day',
+      locked: !!entry.locked
+    };
+  }
+  var ivCount = IVS.length;
+  var ivJC = [];
+  for(var i=0;i<ivCount;i++) ivJC.push(cellText(2+i));
   return {
     user: S.name || '',
-    wb: entry.wb || '',
-    date: entry.date || '',
-    isRestDay: !!entry.isRestDay,
-    ivJC: ivJC,              // [1st Break JC, Lunch JC, 2nd Break JC, EOS JC] — same order as IVS/table columns
-    totalJC: entry.totalJC || 0,
-    prodS: entry.totalProdS || 0,
-    avgAHTsec: entry.avgAHTsec || 0,
-    target: entry.tgt || 0,
-    allowance: entry.allowance || 0,
-    status: entry.isRestDay ? 'Rest Day' : (entry.status || ''),
-    leave: leaveLabel,
+    wb: cellText(0),
+    date: cellText(1).replace(' 🔒','').trim(),
+    ivJC: ivJC,
+    totalJC: cellText(2+ivCount),
+    prodS: cellText(3+ivCount),
+    avgAHTsec: cellText(4+ivCount),
+    target: cellText(5+ivCount),
+    allowance: cellText(6+ivCount),
+    status: cellText(7+ivCount).replace(/[^\x00-\x7F]/g,'').trim(), // strip emoji/badges, keep "Met"/"Not Met" text
     locked: !!entry.locked
   };
 }
@@ -1959,7 +1986,7 @@ function addEntry(){
   // PL full / UL full: auto-lock and advance to next day immediately
   if(isFullLeave){
     var lockIdx=S.entries.findIndex(function(e){return e.date===date;});
-    if(lockIdx>=0){ S.entries[lockIdx].locked=true; S.entries[lockIdx].lockedAt=Date.now(); persist(); backupEntryToSheet(S.entries[lockIdx]); }
+    if(lockIdx>=0){ S.entries[lockIdx].locked=true; S.entries[lockIdx].lockedAt=Date.now(); persist(); backupEntryToSheet(getLatestEntry()); }
     shiftDate(1);
     return;
   }
@@ -1986,7 +2013,7 @@ function saveAndLock(){
     if(!existingFullLeave) addEntry();
     else{
       var idx2=S.entries.findIndex(function(e){return e.date===date;});
-      if(idx2>=0){ S.entries[idx2].locked=true; S.entries[idx2].lockedAt=Date.now(); persist(); backupEntryToSheet(S.entries[idx2]); }
+      if(idx2>=0){ S.entries[idx2].locked=true; S.entries[idx2].lockedAt=Date.now(); persist(); backupEntryToSheet(getLatestEntry()); }
       shiftDate(1);
     }
     return;
@@ -1997,7 +2024,7 @@ function saveAndLock(){
   S.entries[idx].locked=true;
   S.entries[idx].lockedAt=Date.now();
   persist();
-  backupEntryToSheet(S.entries[idx]);
+  backupEntryToSheet(getLatestEntry());
   shiftDate(1);
 }
 
