@@ -721,17 +721,6 @@ var OFFLINE_OPTS = [
   {label:'5 min',val:5},{label:'1 min',val:1},
 ];
 
-// Returns a human-readable offline label for a given minutes value.
-// Matches against OFFLINE_OPTS presets; falls back to "X min (custom)"
-// for any value that was typed in manually.
-function offlineLabel(min){
-  if(!min || min===0) return '';
-  var m=parseFloat(min);
-  if(!m) return '';
-  var match=OFFLINE_OPTS.find(function(o){ return o.val===m; });
-  return match ? match.label : (m+' min (custom)');
-}
-
 // ══ STATE ══
 var S = { name:'', ahtTarget:17, entries:[], activeYears:[2026] };
 var editingId = null;
@@ -782,23 +771,6 @@ function getWeeklyAggregate(dateStr){
   var totalProdS=weekEntries.reduce(function(s,e){ return s+(e.totalProdS||0); },0);
   var weeklyAHT=totalJC>0 ? (totalProdS/totalJC) : 0;
   var daysLocked=weekEntries.filter(function(e){ return !!e.locked; }).length;
-
-  // Per-interval breakdown: sum JC and productive seconds across all entries
-  // in the week for each interval, then compute that interval's running AHT.
-  var ivStats={};
-  IVS.forEach(function(iv){
-    var ivJC=0, ivProdS=0;
-    weekEntries.forEach(function(e){
-      var d=(e.iv&&e.iv[iv])||{jc:0,totalS:0,offlineS:0};
-      ivJC+=d.jc||0;
-      ivProdS+=Math.max(0,(d.totalS||0)-(d.offlineS||0));
-    });
-    ivStats[iv]={
-      jc: ivJC,
-      aht: ivJC>0 ? parseFloat((ivProdS/ivJC).toFixed(2)) : 0
-    };
-  });
-
   return {
     weekStart:weekStart,
     weekEnd:weekEnd,
@@ -806,8 +778,7 @@ function getWeeklyAggregate(dateStr){
     totalProdS:totalProdS,
     weeklyAHT:weeklyAHT,
     daysLocked:daysLocked,
-    daysWithEntries:weekEntries.length,
-    ivStats:ivStats
+    daysWithEntries:weekEntries.length
   };
 }
 
@@ -829,7 +800,6 @@ function entryToBackupRow(entry){
       wb: cellText(0),
       date: cellText(1),
       ivJC: ['—','—','—','—'],
-      ivOffline: ['','','',''],
       totalJC: '—', prodS: '—', avgAHTsec: '—', target: '—', allowance: '—',
       status: 'Rest Day',
       locked: !!entry.locked
@@ -838,26 +808,25 @@ function entryToBackupRow(entry){
   var ivCount = IVS.length;
   var ivJC = [];
   for(var i=0;i<ivCount;i++) ivJC.push(cellText(2+i));
-  // Per-interval offline labels resolved from the raw offlineMin stored on the
-  // entry — offline isn't a visible table column so we read from the data model
-  // directly rather than the rendered DOM.
-  var ivOffline = IVS.map(function(iv){
-    var d=(entry.iv&&entry.iv[iv])||{};
-    var oMin=d.offlineMin!==undefined ? d.offlineMin : parseFloat(secToMin(d.offlineS||0));
-    return offlineLabel(oMin);
+  // Build a compact offline summary string: only intervals with >0 offline minutes
+  var offlineParts = [];
+  IVS.forEach(function(iv){
+    var d = (entry.iv && entry.iv[iv]) || {};
+    var oMin = d.offlineMin !== undefined ? d.offlineMin : parseFloat(secToMin(d.offlineS || 0));
+    if(oMin > 0) offlineParts.push(iv + ': ' + oMin.toFixed(1) + 'min');
   });
   return {
     user: S.name || '',
     wb: cellText(0),
     date: cellText(1).replace(' 🔒','').trim(),
     ivJC: ivJC,
-    ivOffline: ivOffline,
     totalJC: cellText(2+ivCount),
     prodS: cellText(3+ivCount),
     avgAHTsec: cellText(4+ivCount),
     target: cellText(5+ivCount),
     allowance: cellText(6+ivCount),
-    status: cellText(7+ivCount).replace(/[^\x00-\x7F]/g,'').trim(),
+    status: cellText(7+ivCount).replace(/[^\x00-\x7F]/g,'').trim(), // strip emoji/badges, keep "Met"/"Not Met" text
+    offlines: offlineParts.join(' | '),
     locked: !!entry.locked
   };
 }
@@ -917,8 +886,7 @@ function backupWeeklySummaryToSheet(dateStr){
     weeklyAHT: agg.weeklyAHT.toFixed(2),
     target: S.ahtTarget||17,
     daysLocked: agg.daysLocked,
-    daysWithEntries: agg.daysWithEntries,
-    ivStats: agg.ivStats  // per-interval {jc, aht} for each of the 4 intervals
+    daysWithEntries: agg.daysWithEntries
   };
   console.log('Weekly summary payload:', payload);
   fetch(SHEET_BACKUP_URL, {
@@ -998,9 +966,7 @@ function backupAllEntries(){
       return {
         user: S.name||'', weekStart: agg.weekStart, weekEnd: agg.weekEnd,
         totalJC: agg.totalJC, totalProdS: agg.totalProdS,
-        weeklyAHT: agg.weeklyAHT.toFixed(2), target: S.ahtTarget||17,
-        daysLocked: agg.daysLocked, daysWithEntries: agg.daysWithEntries,
-        ivStats: agg.ivStats
+        weeklyAHT: agg.weeklyAHT.toFixed(2), target: S.ahtTarget||17, daysLocked: agg.daysLocked
       };
     });
     fetch(SHEET_BACKUP_URL, {
