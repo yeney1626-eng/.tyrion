@@ -753,9 +753,10 @@ function getWeekStart(dateStr){
   return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
 }
 
-// Aggregates every locked entry in the same work week as dateStr into a
-// single weekly totals object: total JC across the week, total productive
-// seconds across the week, and the resulting blended AHT for the week.
+// Aggregates every saved entry (locked OR unlocked draft) in the same work
+// week as dateStr. Previously only locked entries were counted, which meant
+// plain "Save Entry" clicks produced zero-contribution weekly payloads.
+// Including drafts gives real-time running totals as the day progresses.
 function getWeeklyAggregate(dateStr){
   var weekStart=getWeekStart(dateStr);
   var weekEnd=(function(){
@@ -764,18 +765,20 @@ function getWeeklyAggregate(dateStr){
     return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
   })();
   var weekEntries=(S.entries||[]).filter(function(e){
-    return e.locked && !e.isRestDay && e.date>=weekStart && e.date<=weekEnd;
+    return !e.isRestDay && e.date>=weekStart && e.date<=weekEnd;
   });
   var totalJC=weekEntries.reduce(function(s,e){ return s+(e.totalJC||0); },0);
   var totalProdS=weekEntries.reduce(function(s,e){ return s+(e.totalProdS||0); },0);
   var weeklyAHT=totalJC>0 ? (totalProdS/totalJC) : 0;
+  var daysLocked=weekEntries.filter(function(e){ return !!e.locked; }).length;
   return {
     weekStart:weekStart,
     weekEnd:weekEnd,
     totalJC:totalJC,
     totalProdS:totalProdS,
     weeklyAHT:weeklyAHT,
-    daysLocked:weekEntries.length
+    daysLocked:daysLocked,
+    daysWithEntries:weekEntries.length
   };
 }
 
@@ -874,7 +877,8 @@ function backupWeeklySummaryToSheet(dateStr){
     totalProdS: agg.totalProdS,
     weeklyAHT: agg.weeklyAHT.toFixed(2),
     target: S.ahtTarget||17,
-    daysLocked: agg.daysLocked
+    daysLocked: agg.daysLocked,
+    daysWithEntries: agg.daysWithEntries
   };
   console.log('Weekly summary payload:', payload);
   fetch(SHEET_BACKUP_URL, {
