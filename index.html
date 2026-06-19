@@ -571,7 +571,7 @@ tr.locked-row td{opacity:.75}
           <thead><tr>
             <th>WB</th><th>Date</th>
             <th>1st Brk JC</th><th>Lunch JC</th><th>2nd Brk JC</th><th>EOS JC</th>
-            <th>Total JC</th><th>Prod (s)</th><th>Avg AHT (s)</th><th>Target</th><th>Allow.</th><th>Status</th>
+            <th>Total JC</th><th>Prod (s)</th><th>Avg AHT (s)</th><th>Target</th><th>Allow.</th><th>Status</th><th>Offline</th>
             <th style="text-align:right">Actions</th>
           </tr></thead>
           <tbody id="entries-tbody"></tbody>
@@ -753,10 +753,30 @@ function getWeekStart(dateStr){
   return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
 }
 
-// Aggregates every saved entry (locked OR unlocked draft) in the same work
-// week as dateStr. Previously only locked entries were counted, which meant
-// plain "Save Entry" clicks produced zero-contribution weekly payloads.
-// Including drafts gives real-time running totals as the day progresses.
+// Computes productive seconds for AHT the same way the dashboard does:
+// locked entries include all intervals; unlocked entries only count up to the
+// last interval with JC > 0, and fully-offline intervals are skipped.
+// This is the single source of truth used by both the dashboard and the backup.
+function prodSForEntry(entry){
+  var ivData=IVS.map(function(iv){ return (entry.iv&&entry.iv[iv])||{totalS:0,offlineS:0,jc:0}; });
+  if(entry.locked){
+    var s=0;
+    ivData.forEach(function(d){ s+=Math.max(0,(d.totalS||0)-(d.offlineS||0)); });
+    return s;
+  }
+  var lastJCIdx=-1;
+  ivData.forEach(function(d,i){ if((d.jc||0)>0) lastJCIdx=i; });
+  if(lastJCIdx<0) return 0;
+  var s=0;
+  for(var i=0;i<=lastJCIdx;i++){
+    var d=ivData[i];
+    var tS=d.totalS||0, oS=d.offlineS||0;
+    if(tS>0 && oS>=tS) continue;
+    s+=Math.max(0,tS-oS);
+  }
+  return s;
+}
+
 function getWeeklyAggregate(dateStr){
   var weekStart=getWeekStart(dateStr);
   var weekEnd=(function(){
@@ -765,10 +785,10 @@ function getWeeklyAggregate(dateStr){
     return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
   })();
   var weekEntries=(S.entries||[]).filter(function(e){
-    return !e.isRestDay && e.date>=weekStart && e.date<=weekEnd;
+    return !e.isRestDay && e.leaveType!=='pl-full' && e.leaveType!=='ul-full' && e.date>=weekStart && e.date<=weekEnd;
   });
   var totalJC=weekEntries.reduce(function(s,e){ return s+(e.totalJC||0); },0);
-  var totalProdS=weekEntries.reduce(function(s,e){ return s+(e.totalProdS||0); },0);
+  var totalProdS=weekEntries.reduce(function(s,e){ return s+prodSForEntry(e); },0);
   var weeklyAHT=totalJC>0 ? (totalProdS/totalJC) : 0;
   var daysLocked=weekEntries.filter(function(e){ return !!e.locked; }).length;
   return {
@@ -1624,26 +1644,7 @@ function updateJCPreview(){
   // AHT rule: include all intervals up to the LAST interval with JC > 0.
   // Passed breaks before the last JC interval are included (they were worked through).
   // Fully-offline intervals (totalMin == offlineMin) are excluded regardless.
-  function prodSForAHT_saved(entry){
-    var ivData=IVS.map(function(iv){ return (entry.iv&&entry.iv[iv])||{totalS:0,offlineS:0,jc:0}; });
-    if(entry.locked){
-      // Locked: whole-day — include ALL intervals even with 0 JC
-      var s=0;
-      ivData.forEach(function(d){ s+=Math.max(0,(d.totalS||0)-(d.offlineS||0)); });
-      return s;
-    }
-    var lastJCIdx=-1;
-    ivData.forEach(function(d,i){ if((d.jc||0)>0) lastJCIdx=i; });
-    if(lastJCIdx<0) return 0;
-    var s=0;
-    for(var i=0;i<=lastJCIdx;i++){
-      var d=ivData[i];
-      var tS=d.totalS||0, oS=d.offlineS||0;
-      if(tS>0 && oS>=tS) continue;
-      s+=Math.max(0,tS-oS);
-    }
-    return s;
-  }
+  function prodSForAHT_saved(entry){ return prodSForEntry(entry); }
   function prodSForAHT_live(){
     var ivData=IVS.map(function(iv){
       var k=iv.replace(/\s+/g,'_');
@@ -2262,7 +2263,7 @@ function renderEntries(){
 
   var tbody=document.getElementById('entries-tbody');
   if(!rows.length){
-    tbody.innerHTML='<tr><td colspan="13" style="text-align:center;color:var(--text2);padding:24px">No entries yet. Go to Log Entry to add your first shift.</td></tr>';
+    tbody.innerHTML='<tr><td colspan="14" style="text-align:center;color:var(--text2);padding:24px">No entries yet. Go to Log Entry to add your first shift.</td></tr>';
     return;
   }
   tbody.innerHTML=rows.map(function(e){ return buildViewRow(e); }).join('');
@@ -2279,6 +2280,7 @@ function buildViewRow(e){
       '<td style="color:var(--text2)">—</td>'+
       '<td style="color:var(--text2)">—</td>'+
       '<td><span class="badge badge-rest">🌙 Rest Day</span></td>'+
+      '<td style="color:var(--text2)">—</td>'+
       '<td style="text-align:right"><div style="display:flex;gap:4px;justify-content:flex-end">'+
         '<button class="btn btn-sm btn-danger" onclick="deleteEntry('+e.id+')" aria-label="Delete">🗑</button>'+
       '</div></td>'+
@@ -2307,6 +2309,15 @@ function buildViewRow(e){
     '<td class="mono">'+(e.tgt||tgtShift())+'</td>'+
     '<td class="mono '+(al>=0?'ok':'bad')+'">'+(al>=0?'+':'')+al+'</td>'+
     '<td><span class="badge '+(e.status==='Met'?'badge-met':'badge-notmet')+'">'+e.status+'</span>'+leaveBadge+lockBadge+'</td>'+
+    (function(){
+      var parts=[];
+      IVS.forEach(function(iv){
+        var d=(e.iv&&e.iv[iv])||{};
+        var oMin=d.offlineMin!==undefined?d.offlineMin:parseFloat(secToMin(d.offlineS||0));
+        if(oMin>0) parts.push(oMin.toFixed(1));
+      });
+      return '<td class="mono" style="color:var(--text2);font-size:11px">'+(parts.length?parts.join(' | ')+'min':'—')+'</td>';
+    })()+
     '<td style="text-align:right"><div style="display:flex;gap:4px;justify-content:flex-end">'+actionBtns+'</div></td>'+
   '</tr>';
 }
@@ -2331,7 +2342,7 @@ function buildEditRow(e){
         '<input class="edit-input edit-input-sm" type="number" step="0.5" id="ed-o-'+k+'" value="'+oMin+'" placeholder="Offline min" style="opacity:.75">'+
       '</div></td>';
     }).join('')+
-    '<td colspan="4" style="color:var(--text2);font-size:11px;vertical-align:middle">Auto-computed on save</td>'+
+    '<td colspan="5" style="color:var(--text2);font-size:11px;vertical-align:middle">Auto-computed on save</td>'+
     '<td style="text-align:right"><div style="display:flex;gap:4px;justify-content:flex-end">'+
       '<button class="btn btn-sm btn-success" onclick="saveEdit('+e.id+')">✓ Save</button>'+
       '<button class="btn btn-sm" onclick="cancelEdit()">✕</button>'+
