@@ -2109,6 +2109,10 @@ function addEntry(){
     shiftDate(1);
     return;
   }
+  // Sync every save (not just lock) so the sheet reflects updates in near
+  // real time, and recompute that week's running totals too.
+  backupEntryToSheet(getLatestEntry());
+  backupWeeklySummaryToSheet(date);
   showLogSaveNotice('✅ <strong>'+date+'</strong> '+(existingIdx>=0?'updated':'saved')+'! Hit 🔒 Save &amp; Lock Day when you\'re done.');
   // After any save, always show Update Entry button
   var _btn=document.getElementById('btn-add-entry');
