@@ -817,8 +817,8 @@ function entryToBackupRow(entry){
   if(entry.isRestDay){
     return {
       user: S.name || '',
-      wb: cellText(0),
-      date: cellText(1),
+      wb: entry.wb || cellText(0),
+      date: entry.date || cellText(1),
       ivJC: ['—','—','—','—'],
       totalJC: '—', prodS: '—', avgAHTsec: '—', target: '—', allowance: '—',
       status: 'Rest Day',
@@ -840,8 +840,8 @@ function entryToBackupRow(entry){
   });
   return {
     user: S.name || '',
-    wb: cellText(0),
-    date: cellText(1).replace(' 🔒','').trim(),
+    wb: entry.wb || cellText(0),
+    date: entry.date || cellText(1).replace(' 🔒','').trim(),
     ivJC: ivJC,
     totalJC: cellText(2+ivCount),
     prodS: cellText(3+ivCount),
