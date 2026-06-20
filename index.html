@@ -835,7 +835,7 @@ function entryToBackupRow(entry){
     var oMin = d.offlineMin !== undefined ? d.offlineMin : parseFloat(secToMin(d.offlineS || 0));
     if(oMin > 0){
       var labels = d.offlineLabels && d.offlineLabels.length ? d.offlineLabels : null;
-      offlineParts.push(iv + ': ' + (labels ? labels.join(' + ') : oMin.toFixed(1) + 'min'));
+      offlineParts.push(labels ? labels.join(' + ') : oMin.toFixed(1) + 'min');
     }
   });
   return {
