@@ -2127,13 +2127,14 @@ function addEntry(){
   // PL full / UL full: auto-lock and advance to next day immediately
   if(isFullLeave){
     var lockIdx=S.entries.findIndex(function(e){return e.date===date;});
-    if(lockIdx>=0){ S.entries[lockIdx].locked=true; S.entries[lockIdx].lockedAt=Date.now(); persist(); backupEntryToSheet(getLatestEntry()); backupWeeklySummaryToSheet(S.entries[lockIdx].date); }
+    if(lockIdx>=0){ S.entries[lockIdx].locked=true; S.entries[lockIdx].lockedAt=Date.now(); persist(); backupEntryToSheet(S.entries[lockIdx]); backupWeeklySummaryToSheet(S.entries[lockIdx].date); }
     shiftDate(1);
     return;
   }
   // Sync every save (not just lock) so the sheet reflects updates in near
   // real time, and recompute that week's running totals too.
-  backupEntryToSheet(getLatestEntry());
+  var savedEntry=S.entries.find(function(e){return e.date===date;});
+  backupEntryToSheet(savedEntry);
   backupWeeklySummaryToSheet(date);
   showLogSaveNotice('✅ <strong>'+date+'</strong> '+(existingIdx>=0?'updated':'saved')+'! Hit 🔒 Save &amp; Lock Day when you\'re done.');
   // After any save, always show Update Entry button
@@ -2158,7 +2159,7 @@ function saveAndLock(){
     if(!existingFullLeave) addEntry();
     else{
       var idx2=S.entries.findIndex(function(e){return e.date===date;});
-      if(idx2>=0){ S.entries[idx2].locked=true; S.entries[idx2].lockedAt=Date.now(); persist(); backupEntryToSheet(getLatestEntry()); backupWeeklySummaryToSheet(S.entries[idx2].date); }
+      if(idx2>=0){ S.entries[idx2].locked=true; S.entries[idx2].lockedAt=Date.now(); persist(); backupEntryToSheet(S.entries[idx2]); backupWeeklySummaryToSheet(S.entries[idx2].date); }
       shiftDate(1);
     }
     return;
@@ -2169,7 +2170,7 @@ function saveAndLock(){
   S.entries[idx].locked=true;
   S.entries[idx].lockedAt=Date.now();
   persist();
-  backupEntryToSheet(getLatestEntry());
+  backupEntryToSheet(S.entries[idx]);
   backupWeeklySummaryToSheet(S.entries[idx].date);
   shiftDate(1);
 }
