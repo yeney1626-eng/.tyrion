@@ -828,12 +828,15 @@ function entryToBackupRow(entry){
   var ivCount = IVS.length;
   var ivJC = [];
   for(var i=0;i<ivCount;i++) ivJC.push(cellText(2+i));
-  // Build a compact offline summary string: only intervals with >0 offline minutes
+  // Build offline summary: prefer stored preset labels; fall back to minutes if none saved
   var offlineParts = [];
   IVS.forEach(function(iv){
     var d = (entry.iv && entry.iv[iv]) || {};
     var oMin = d.offlineMin !== undefined ? d.offlineMin : parseFloat(secToMin(d.offlineS || 0));
-    if(oMin > 0) offlineParts.push(iv + ': ' + oMin.toFixed(1) + 'min');
+    if(oMin > 0){
+      var labels = d.offlineLabels && d.offlineLabels.length ? d.offlineLabels : null;
+      offlineParts.push(iv + ': ' + (labels ? labels.join(' + ') : oMin.toFixed(1) + 'min'));
+    }
   });
   return {
     user: S.name || '',
@@ -2090,7 +2093,13 @@ function addEntry(){
       var tMin=tEl?parseFloat(tEl.value)||0:0;
       var oMin=oEl?parseFloat(oEl.value)||0:0;
       var jc=jEl?parseInt(jEl.value)||0:0;
-      iv[ivn]={totalMin:tMin,offlineMin:oMin,totalS:minToSec(tMin),offlineS:minToSec(oMin),jc:jc};
+      // Capture selected preset labels (drop "Custom / None" blanks)
+      var offlineLabels=[];
+      [1,2,3].forEach(function(n){
+        var sel=document.getElementById('ivop'+n+'_'+k);
+        if(sel && sel.value){ offlineLabels.push(sel.options[sel.selectedIndex].text.replace(/\s*—\s*\d+\s*min\s*$/i,'').trim()); }
+      });
+      iv[ivn]={totalMin:tMin,offlineMin:oMin,totalS:minToSec(tMin),offlineS:minToSec(oMin),jc:jc,offlineLabels:offlineLabels};
     });
   }
 
@@ -2797,7 +2806,12 @@ function saveEditModal(){
     var tMin=parseFloat(document.getElementById('em-t-'+k).value)||0;
     var oMin=parseFloat(document.getElementById('em-o-'+k).value)||0;
     var jc=parseInt(document.getElementById('em-j-'+k).value)||0;
-    e.iv[iv]={totalMin:tMin,offlineMin:oMin,totalS:minToSec(tMin),offlineS:minToSec(oMin),jc:jc};
+    var offlineLabels=[];
+    [1,2,3].forEach(function(n){
+      var sel=document.getElementById('em-op'+n+'-'+k);
+      if(sel && sel.value){ offlineLabels.push(sel.options[sel.selectedIndex].text.replace(/\s*—\s*\d+\s*min\s*$/i,'').trim()); }
+    });
+    e.iv[iv]={totalMin:tMin,offlineMin:oMin,totalS:minToSec(tMin),offlineS:minToSec(oMin),jc:jc,offlineLabels:offlineLabels};
   });
   calcEntry(e); persist(); closeEditModal();
   renderEntries();
