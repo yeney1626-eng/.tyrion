@@ -2072,7 +2072,7 @@ function renderDateSummary(panel, e, dateVal){
 }
 
 // ══ ADD / UPDATE ENTRY ══
-function addEntry(){
+function addEntry(skipBackup){
   var wb=document.getElementById('inp-wb').value;
   var date=document.getElementById('inp-date').value;
   if(!date){alert('Please select a date.');return;}
@@ -2135,9 +2135,14 @@ function addEntry(){
   }
   // Sync every save (not just lock) so the sheet reflects updates in near
   // real time, and recompute that week's running totals too.
+  // Skipped when called from saveAndLock(), which does its own single
+  // backup after setting locked=true — avoids firing two backup requests
+  // back-to-back for the same entry, which was causing duplicate rows.
   var savedEntry=S.entries.find(function(e){return e.date===date;});
-  backupEntryToSheet(savedEntry);
-  backupWeeklySummaryToSheet(date);
+  if(!skipBackup){
+    backupEntryToSheet(savedEntry);
+    backupWeeklySummaryToSheet(date);
+  }
   showLogSaveNotice('✅ <strong>'+date+'</strong> '+(existingIdx>=0?'updated':'saved')+'! Hit 🔒 Save &amp; Lock Day when you\'re done.');
   // After any save, always show Update Entry button
   var _btn=document.getElementById('btn-add-entry');
@@ -2166,7 +2171,7 @@ function saveAndLock(){
     }
     return;
   }
-  if(!existingRest) addEntry();
+  if(!existingRest) addEntry(true);
   var idx=S.entries.findIndex(function(e){return e.date===date;});
   if(idx<0) return;
   S.entries[idx].locked=true;
