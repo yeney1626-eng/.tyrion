@@ -2254,7 +2254,7 @@ function entryProdSForAHT(e){
 
 function renderEntries(){
   buildYearFilter();
-  var rows=getYearEntries().slice().reverse();
+  var rows=getYearEntries().slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
   // Summary metrics — exclude rest days from JC stats
   var workRows=rows.filter(function(e){return !e.isRestDay;});
   var restCount=rows.filter(function(e){return e.isRestDay;}).length;
