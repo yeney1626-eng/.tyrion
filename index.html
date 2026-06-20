@@ -856,10 +856,13 @@ function entryToBackupRow(entry){
 
 function deleteEntryFromSheet(user, date){
   if(!SHEET_BACKUP_URL || !date) return;
+  // Include weekStart so the backend can clean the Weekly Summary row if
+  // the follow-up backupWeeklySummaryToSheet call races or fails.
+  var weekStart = getWeekStart(date);
   fetch(SHEET_BACKUP_URL, {
     method: 'POST',
     headers: {'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify({ action:'delete', user: user||'', date: date })
+    body: JSON.stringify({ action:'delete', user: user||'', date: date, weekStart: weekStart })
   }).catch(function(err){
     console.error('Delete-from-sheet fetch failed:', err);
   });
@@ -979,7 +982,9 @@ function backupAllEntries(){
   // backfilled too without sending the same week multiple times.
   function sendWeeklyRollups(){
     var weekStarts={};
-    all.forEach(function(e){ if(e.locked && !e.isRestDay && e.date) weekStarts[getWeekStart(e.date)]=true; });
+    // Include ALL non-rest entries (locked or unlocked) so the WB Running Summary
+    // reflects every saved day's contribution, matching what the app shows.
+    all.forEach(function(e){ if(!e.isRestDay && e.leaveType!=='pl-full' && e.leaveType!=='ul-full' && e.date) weekStarts[getWeekStart(e.date)]=true; });
     var weeks=Object.keys(weekStarts);
     if(!weeks.length){
       if(btn){ btn.disabled=false; btn.textContent='☁️ Backup All Entries'; }
@@ -989,6 +994,7 @@ function backupAllEntries(){
     var weeklyPayloads=weeks.map(function(ws){
       var agg=getWeeklyAggregate(ws);
       return {
+        weeklySummary: true,
         user: S.name||'', weekStart: agg.weekStart, weekEnd: agg.weekEnd,
         totalJC: agg.totalJC, totalProdS: agg.totalProdS,
         weeklyAHT: agg.weeklyAHT.toFixed(2), target: S.ahtTarget||17, daysLocked: agg.daysLocked
@@ -2189,6 +2195,9 @@ function unlockEntry(dateVal){
     S.entries[idx].locked=false;
     S.entries[idx].lockedAt=null;
     persist();
+    // Sync the unlocked entry and recompute this week's running summary
+    backupEntryToSheet(S.entries[idx]);
+    backupWeeklySummaryToSheet(dateVal);
     // Refresh entries table if visible
     var entriesTab=document.getElementById('tab-entries');
     if(entriesTab && entriesTab.classList.contains('active')) renderEntries();
