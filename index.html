@@ -412,23 +412,17 @@ tr.locked-row td{opacity:.75}
   <div class="setup-box">
     <div class="setup-logo">📊</div>
     <h1>TeamRoanne Personal AHT Tracker</h1>
-    <p id="setup-intro-text">Enter your name and a 4-digit PIN. New names create a fresh account; existing names need their saved PIN to sync across devices.</p>
+    <p>Set up your profile to get started.<br>You can change these anytime in Settings.</p>
     <div class="setup-field">
       <label>Your Name</label>
-      <input type="text" id="setup-name" placeholder="e.g. Maria" maxlength="30" onkeydown="if(event.key==='Enter')document.getElementById('setup-pin').focus()">
-    </div>
-    <div class="setup-field">
-      <label>4-Digit PIN</label>
-      <input type="password" id="setup-pin" placeholder="••••" maxlength="4" inputmode="numeric" pattern="[0-9]*" onkeydown="if(event.key==='Enter')finishSetup()">
-      <span class="setup-hint">Use the same name + PIN on any device to access your data.</span>
+      <input type="text" id="setup-name" placeholder="e.g. Maria" maxlength="30" onkeydown="if(event.key==='Enter')finishSetup()">
     </div>
     <div class="setup-field">
       <label>AHT Target (seconds)</label>
       <input type="number" id="setup-target" value="17" min="1" onkeydown="if(event.key==='Enter')finishSetup()">
-      <span class="setup-hint">Default: 17s. Adjust to your team's target. Ignored if your name already has an account.</span>
+      <span class="setup-hint">Default: 17s. Adjust to your team's target.</span>
     </div>
-    <div class="access-err" id="setup-err"></div>
-    <button class="setup-btn" id="setup-submit-btn" onclick="finishSetup()">Start Tracking →</button>
+    <button class="setup-btn" onclick="finishSetup()">Start Tracking →</button>
   </div>
 </div>
 
@@ -595,7 +589,7 @@ tr.locked-row td{opacity:.75}
         <div class="profile-row">
           <div class="field" style="flex:1;min-width:140px">
             <label>Your Name</label>
-            <input type="text" id="cfg-name" maxlength="30" disabled title="Name is locked to your account. Contact whoever manages the tracker to rename.">
+            <input type="text" id="cfg-name" maxlength="30">
           </div>
           <div class="field" style="width:160px">
             <label>AHT Target (s)</label>
@@ -604,30 +598,12 @@ tr.locked-row td{opacity:.75}
           <button class="btn btn-primary" onclick="saveSettings()">✓ Save</button>
         </div>
         <div style="margin-top:10px;font-size:11px;color:var(--text2)" id="cfg-info"></div>
-        <div style="margin-top:4px;font-size:11px;color:var(--text2)">Name is locked because your account and PIN are tied to it. To use a different name, set up a new account from the login screen.</div>
-      </div>
-
-      <div class="settings-panel">
-        <h3>🔑 PIN</h3>
-        <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Use this PIN with your name to access your data on any device.</p>
-        <div class="profile-row">
-          <div class="field" style="width:140px">
-            <label>Current PIN</label>
-            <input type="password" id="cfg-old-pin" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="••••">
-          </div>
-          <div class="field" style="width:140px">
-            <label>New PIN</label>
-            <input type="password" id="cfg-new-pin" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="••••">
-          </div>
-          <button class="btn btn-primary" onclick="changeMyPin()">✓ Update PIN</button>
-        </div>
-        <div style="margin-top:8px;font-size:11px;color:var(--text2)" id="cfg-pin-info"></div>
       </div>
 
       <div class="settings-panel">
         <h3>🗑 Data</h3>
-        <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Your entries are stored on the shared server and synced to this device. Clearing local data only forgets this device's login — your data stays safe on the server, and logging back in with your name + PIN brings it all back.</p>
-        <button class="btn btn-danger" onclick="clearAllData()">Forget This Device</button>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:12px">All data is stored in your browser's localStorage. Clearing it will delete all entries.</p>
+        <button class="btn btn-danger" onclick="clearAllData()">Clear All Data</button>
       </div>
     </div>
 
@@ -754,54 +730,6 @@ var currentLeaveType = 'none'; // 'none','pl-full','pl-half','ul-full','ul-half'
 // ══ CLOUD BACKUP (Google Sheets via Apps Script) ══
 var SHEET_BACKUP_URL = 'https://script.google.com/macros/s/AKfycbxDa_g78fDtmSTx0mIneG65BKnCWvK551nezJkCt2qsVYEdJXqiRyXJCdLuLAb411nf/exec';
 
-// ══ AUTH / CROSS-DEVICE SYNC ══
-// Posts to the Apps Script backend and resolves with the parsed JSON body,
-// or rejects with an Error carrying the backend's message (or a generic
-// network-failure message) so callers can show it directly.
-function backendPost(payload){
-  return fetch(SHEET_BACKUP_URL, {
-    method: 'POST',
-    headers: {'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify(payload)
-  }).then(function(res){
-    return res.text().then(function(text){
-      var parsed=null;
-      try{ parsed=JSON.parse(text); }catch(e){}
-      if(parsed && parsed.status==='ok') return parsed;
-      var msg=(parsed && parsed.message) ? parsed.message : ('Request failed ('+res.status+')');
-      throw new Error(msg);
-    });
-  }, function(){
-    throw new Error('Could not reach the server. Check your connection and try again.');
-  });
-}
-
-// Pulls this user's full entry history + saved AHT target down from the
-// Sheet and merges it into local state S, then persists to localStorage so
-// it's available offline afterward too. Entries are matched/replaced by
-// date so a fresh pull always reflects the server's current truth.
-function pullUserDataFromSheet(user){
-  return backendPost({ action:'getUserData', user:user }).then(function(resp){
-    var serverEntries=(resp.result && resp.result.entries) || [];
-    var serverTarget=(resp.result && resp.result.ahtTarget) || S.ahtTarget || 17;
-    S.entries = serverEntries.map(migrateEntry);
-    S.ahtTarget = serverTarget;
-    persist();
-    return resp.result;
-  });
-}
-
-// Always-pull-fresh-before-edit: re-downloads this user's data from the
-// Sheet before any save/lock/delete is applied locally, so two devices used
-// back-to-back never silently clobber each other. Failures are swallowed
-// (network hiccup shouldn't block someone from working offline) but logged.
-function refreshBeforeEdit(){
-  if(!S.name) return Promise.resolve();
-  return pullUserDataFromSheet(S.name).catch(function(err){
-    console.warn('Pre-edit refresh failed, continuing with local data:', err.message);
-  });
-}
-
 // Returns the entry with the most recent date across all years — i.e. the
 // entry that appears first/top in the Entries table regardless of which
 // year filter happens to be selected.
@@ -894,8 +822,7 @@ function entryToBackupRow(entry){
       ivJC: ['—','—','—','—'],
       totalJC: '—', prodS: '—', avgAHTsec: '—', target: '—', allowance: '—',
       status: 'Rest Day',
-      locked: !!entry.locked,
-      rawEntry: entry
+      locked: !!entry.locked
     };
   }
   var ivCount = IVS.length;
@@ -923,8 +850,7 @@ function entryToBackupRow(entry){
     allowance: cellText(6+ivCount),
     status: cellText(7+ivCount).replace(/[^\x00-\x7F]/g,'').trim(), // strip emoji/badges, keep "Met"/"Not Met" text
     offlines: offlineParts.join(' | '),
-    locked: !!entry.locked,
-    rawEntry: entry
+    locked: !!entry.locked
   };
 }
 
@@ -1135,90 +1061,13 @@ function migrateEntry(e){
 }
 
 // ══ SETUP ══
-function setSetupBusy(busy, label){
-  var btn=document.getElementById('setup-submit-btn');
-  var err=document.getElementById('setup-err');
-  if(btn){ btn.disabled=busy; btn.textContent = busy ? (label||'Please wait…') : 'Start Tracking →'; }
-  if(err && busy) err.textContent='';
-}
-function showSetupError(msg){
-  var err=document.getElementById('setup-err');
-  if(err) err.textContent=msg;
-}
 function finishSetup(){
   var name = (document.getElementById('setup-name').value||'').trim();
-  var pin  = (document.getElementById('setup-pin').value||'').trim();
   var tgt  = parseInt(document.getElementById('setup-target').value)||17;
   if(!name){ document.getElementById('setup-name').focus(); return; }
-  if(!/^[0-9]{4}$/.test(pin)){ showSetupError('PIN must be exactly 4 digits.'); document.getElementById('setup-pin').focus(); return; }
-
-  setSetupBusy(true, 'Connecting…');
-  // Snapshot whether this browser had a name+entries already saved locally
-  // *before* we touch S.name below — used to decide if "upload my existing
-  // local entries" is actually safe to do for a brand-new server account.
-  var hadNoPriorName = !S.name;
-  backendPost({ action:'setupPin', user:name, pin:pin, ahtTarget:tgt }).then(function(resp){
-    // setupPin succeeds whether this is a brand-new name OR a returning name
-    // whose PIN matched — either way we're now authenticated as `name`.
-    var wasCreated = resp.result && resp.result.created;
-    if(wasCreated){
-      S.name = name;
-      S.ahtTarget = tgt;
-      persist();
-      // Only offer to upload pre-existing local entries if this browser had
-      // no name on file before now (i.e. truly orphaned data from before
-      // accounts existed) — never carry over entries that were logged under
-      // a different name, which would silently mis-attribute someone else's
-      // history to this new account.
-      var localEntries = hadNoPriorName ? (S.entries||[]).slice() : [];
-      if(localEntries.length){
-        return backupAllEntriesSilently().then(function(){ return finishLoginUI(); });
-      }
-      S.entries = [];
-      persist();
-      return finishLoginUI();
-    }
-    // Existing account: pull authoritative data down from the Sheet.
-    S.name = name;
-    setSetupBusy(true, 'Syncing your data…');
-    return pullUserDataFromSheet(name).then(function(){ return finishLoginUI(); });
-  }).catch(function(err){
-    setSetupBusy(false);
-    showSetupError(err.message);
-  });
-}
-
-// Same chunked upload logic as backupAllEntries(), but silent (no button/UI
-// updates) — used to push a returning-from-localStorage user's pre-existing
-// entries up to a freshly created server account during first PIN setup.
-function backupAllEntriesSilently(){
-  var all=(S.entries||[]).slice();
-  if(!all.length) return Promise.resolve();
-  var rows=all.map(entryToBackupRow);
-  var CHUNK=25;
-  var chunks=[];
-  for(var i=0;i<rows.length;i+=CHUNK) chunks.push(rows.slice(i,i+CHUNK));
-  var p=Promise.resolve();
-  chunks.forEach(function(chunk){
-    p=p.then(function(){ return backendPost({ batch: chunk }).catch(function(e){ console.warn('Silent batch upload failed:',e.message); }); });
-  });
-  return p.then(function(){
-    var weekStarts={};
-    all.forEach(function(e){ if(!e.isRestDay && e.leaveType!=='pl-full' && e.leaveType!=='ul-full' && e.date) weekStarts[getWeekStart(e.date)]=true; });
-    var weeks=Object.keys(weekStarts);
-    if(!weeks.length) return;
-    var weeklyPayloads=weeks.map(function(ws){
-      var agg=getWeeklyAggregate(ws);
-      return { weeklySummary:true, user:S.name||'', weekStart:agg.weekStart, weekEnd:agg.weekEnd,
-        totalJC:agg.totalJC, totalProdS:agg.totalProdS, weeklyAHT:agg.weeklyAHT.toFixed(2),
-        target:S.ahtTarget||17, daysLocked:agg.daysLocked };
-    });
-    return backendPost({ weeklyBatch: weeklyPayloads }).catch(function(e){ console.warn('Silent weekly upload failed:',e.message); });
-  });
-}
-
-function finishLoginUI(){
-  setSetupBusy(false);
+  S.name = name;
+  S.ahtTarget = tgt;
+  persist();
   document.getElementById('setup-screen').style.display='none';
   document.getElementById('app').classList.add('visible');
   appInit();
@@ -1404,21 +1253,6 @@ function showTab(t){
   if(t==='settings'){ loadSettingsForm(); }
   if(t==='game'){
     selectGame('snake');
-  }
-  // Pull fresh data from the server before letting the person edit anything
-  // on the Log or Entries tabs, so a save here can never silently overwrite
-  // newer changes made from another device. Re-renders whichever of those
-  // two views is now active once the pull lands.
-  if(t==='log' || t==='entries'){
-    refreshBeforeEdit().then(function(){
-      if(t==='log'){
-        var inpD2=document.getElementById('inp-date');
-        if(inpD2 && inpD2.value) checkDateSummary(inpD2.value);
-        updateJCPreview();
-      } else {
-        renderEntries();
-      }
-    });
   }
 }
 
@@ -2587,38 +2421,20 @@ function loadSettingsForm(){
   document.getElementById('cfg-info').textContent='Daily target: '+tgtShift()+' JC/day · Weekly: '+(tgtShift()*5)+' JC/week';
 }
 function saveSettings(){
+  var name=(document.getElementById('cfg-name').value||'').trim();
   var tgt=parseInt(document.getElementById('cfg-target').value)||17;
-  S.ahtTarget=tgt;
+  if(!name){alert('Name cannot be empty.');return;}
+  S.name=name; S.ahtTarget=tgt;
   // Recalc all entries with new target
   S.entries=S.entries.map(calcEntry);
   persist();
+  var snEl2=document.getElementById('sidebar-name'); snEl2.childNodes[0].textContent='TeamRoanne · '+name+"'s Tracker ";
+  document.getElementById('mobile-name').textContent=name+' · TeamRoanne';
   document.getElementById('cfg-info').textContent='Daily target: '+tgtShift()+' JC/day · Weekly: '+(tgtShift()*5)+' JC/week';
-  // Persist the new target to the server too (stored on the Users row) so
-  // it survives a fresh login on another device. No PIN needed for this —
-  // already-authenticated session, just updating a preference.
-  backendPost({ action:'updateTarget', user:S.name, ahtTarget:tgt }).catch(function(){});
   alert('Settings saved!');
 }
-
-function changeMyPin(){
-  var oldPin=(document.getElementById('cfg-old-pin').value||'').trim();
-  var newPin=(document.getElementById('cfg-new-pin').value||'').trim();
-  var info=document.getElementById('cfg-pin-info');
-  if(!/^[0-9]{4}$/.test(oldPin) || !/^[0-9]{4}$/.test(newPin)){
-    info.textContent='Both PINs must be exactly 4 digits.'; info.style.color='var(--red)';
-    return;
-  }
-  info.textContent='Updating…'; info.style.color='var(--text2)';
-  backendPost({ action:'changePin', user:S.name, oldPin:oldPin, newPin:newPin }).then(function(){
-    info.textContent='✓ PIN updated.'; info.style.color='var(--accent2)';
-    document.getElementById('cfg-old-pin').value='';
-    document.getElementById('cfg-new-pin').value='';
-  }).catch(function(err){
-    info.textContent=err.message; info.style.color='var(--red)';
-  });
-}
 function clearAllData(){
-  if(!confirm("Forget this device? You'll need your name + PIN to log back in. Your data stays safe on the server.")) return;
+  if(!confirm('Delete ALL entries and reset your profile? This cannot be undone.')) return;
   localStorage.removeItem('aht_personal_v1');
   location.reload();
 }
@@ -3207,12 +3023,6 @@ function showWelcomeSplash(){
   },2400);
 }
 
-// If this device has already authenticated as S.name before, we skip
-// straight past the name+PIN screen but still silently re-sync from the
-// Sheet on launch (catches changes made on other devices since last open).
-// A brand-new device, or one where data was cleared, always lands on the
-// name+PIN screen — same flow as finishSetup(), since logging in again with
-// the right PIN is exactly how cross-device sync gets bootstrapped.
 function bootApp(){
   loadState();
   if(S.name){
@@ -3220,12 +3030,6 @@ function bootApp(){
     document.getElementById('app').classList.add('visible');
     appInit();
     showWelcomeSplash();
-    pullUserDataFromSheet(S.name).then(function(){
-      var entriesTab=document.getElementById('tab-entries');
-      if(entriesTab && entriesTab.classList.contains('active')) renderEntries();
-    }).catch(function(err){
-      console.warn('Background sync on launch failed, using local data:', err.message);
-    });
   } else {
     document.getElementById('setup-screen').style.display='flex';
   }
