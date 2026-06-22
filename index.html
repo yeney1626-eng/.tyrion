@@ -2912,19 +2912,16 @@ function doRestoreFromSheet(){
   fetch(SHEET_BACKUP_URL,{
     method:'POST',
     headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body:JSON.stringify({action:'getUserData', user:targetUser})
+    body:JSON.stringify({action:'getEntriesByUser', user:targetUser})
   })
   .then(function(r){ return r.json(); })
   .then(function(resp){
     if(resp.status!=='ok') throw new Error(resp.message||'Backend returned an error.');
     var serverEntries=(resp.result&&resp.result.entries)||[];
     if(!serverEntries.length){
-      // Backend responded but has no RawData entries — may be old backend
-      // or user has no entries yet. Offer CSV fallback.
-      setRestoreStatus('info','No synced entries found on the Sheet for "'+targetUser+'". The Sheet may be using the old backup format. Upload the exported CSV instead.');
+      setRestoreStatus('error','No backed-up entries found for "'+targetUser+'" in the Sheet. Check the name matches exactly what was used when logging entries.');
       btn.disabled=false;
-      btn.textContent='📂 Upload CSV Instead';
-      btn.onclick=function(){ btn.onclick=doRestoreFromSheet; doRestoreFromCSVFallback(targetUser); };
+      btn.textContent='♻️ Restore Entries';
       return;
     }
     mergeRestoredEntries(serverEntries, targetUser);
