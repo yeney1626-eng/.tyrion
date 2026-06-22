@@ -583,30 +583,26 @@ tr.locked-row td{opacity:.75}
           <div style="padding:18px 20px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
             <div>
               <div style="font-size:15px;font-weight:800;color:var(--text)">♻️ Restore from Sheet</div>
-              <div style="font-size:11px;color:var(--text2);margin-top:3px">Pull any user's entries from the Google Sheet backup</div>
+              <div style="font-size:11px;color:var(--text2);margin-top:3px">Pull your backed-up entries from the Google Sheet</div>
             </div>
             <button onclick="closeRestoreModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text2);line-height:1">×</button>
           </div>
           <div style="padding:20px">
-            <div style="margin-bottom:14px">
-              <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">Select user to restore</label>
-              <select id="restore-user-select" style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-el);color:var(--text);font-size:13px">
-                <option value="">— choose a name —</option>
-              </select>
-            </div>
-            <div style="margin-bottom:14px">
-              <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">Or type a name manually</label>
-              <input type="text" id="restore-user-manual" placeholder="e.g. Yen" maxlength="40"
-                style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-el);color:var(--text);font-size:13px;box-sizing:border-box">
+            <div style="margin-bottom:14px;padding:10px 14px;background:var(--bg-el);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;gap:10px">
+              <span style="font-size:20px">👤</span>
+              <div>
+                <div style="font-size:11px;color:var(--text2)">Restoring entries for</div>
+                <div style="font-size:14px;font-weight:800;color:var(--accent)" id="restore-user-display">—</div>
+              </div>
             </div>
             <div style="font-size:11px;color:var(--text2);margin-bottom:16px;padding:8px 10px;background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);border-radius:7px">
-              ⚠️ This will <strong>merge</strong> restored entries with your current local data. Existing dates are not overwritten — only missing dates are added.
+              ⚠️ Missing dates from the Sheet will be <strong>added</strong> to your local data. Dates you already have locally are not overwritten.
             </div>
             <div id="restore-status" style="display:none;font-size:12px;padding:8px 12px;border-radius:7px;margin-bottom:12px"></div>
           </div>
           <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
             <button class="btn" onclick="closeRestoreModal()">Cancel</button>
-            <button class="btn btn-primary" id="restore-confirm-btn" onclick="doRestoreFromSheet()" style="background:linear-gradient(135deg,#7C3AED,#A855F7);border:none">♻️ Restore Entries</button>
+            <button class="btn btn-primary" id="restore-confirm-btn" onclick="doRestoreFromSheet()" style="background:linear-gradient(135deg,#7C3AED,#A855F7);border:none">♻️ Restore My Entries</button>
           </div>
         </div>
       </div>
@@ -2859,25 +2855,15 @@ function confirmImport(){
   },100);
 }
 
-// ══ RESTORE FROM SHEET (pulls live from Google Sheet backup) ══
+// ══ RESTORE FROM SHEET (current user only) ══
 function openRestoreModal(){
-  var select = document.getElementById('restore-user-select');
-  // Pre-fill dropdown with names seen in local entries + current user
-  var seen = {};
-  (S.entries||[]).forEach(function(e){ var n=e.user||S.name; if(n) seen[n]=true; });
-  if(S.name) seen[S.name]=true;
-  select.innerHTML = '<option value="">— choose a name —</option>';
-  Object.keys(seen).forEach(function(n){
-    var opt=document.createElement('option');
-    opt.value=n; opt.textContent=n;
-    if(n===S.name) opt.selected=true;
-    select.appendChild(opt);
-  });
-  document.getElementById('restore-user-manual').value='';
+  if(!S.name){ alert('Please log in first.'); return; }
+  document.getElementById('restore-user-display').textContent = S.name;
   document.getElementById('restore-status').style.display='none';
-  document.getElementById('restore-confirm-btn').disabled=false;
-  document.getElementById('restore-confirm-btn').textContent='♻️ Restore Entries';
-  setRestoreStatus('info','Choose a user above then click "Restore Entries" to pull their backed-up data from the Sheet.');
+  var btn=document.getElementById('restore-confirm-btn');
+  btn.disabled=false;
+  btn.textContent='♻️ Restore My Entries';
+  btn.onclick=doRestoreFromSheet;
   document.getElementById('restore-modal').style.display='flex';
 }
 
@@ -2894,20 +2880,13 @@ function setRestoreStatus(type,msg){
   el.textContent=msg;
 }
 
-// Calls the backend getUserData action to pull the chosen user's full entry
-// history directly from the Sheet, then merges into local state (no overwrite
-// on existing dates). Works with the NEW backend (has getUserData action).
-// Falls back to CSV-upload if the backend returns an error (e.g. old backend).
 function doRestoreFromSheet(){
-  var select=document.getElementById('restore-user-select');
-  var manual=(document.getElementById('restore-user-manual').value||'').trim();
-  var targetUser=(manual||select.value||'').trim();
-  if(!targetUser){ setRestoreStatus('error','Please choose or type a name first.'); return; }
-
+  var targetUser=S.name;
+  if(!targetUser){ setRestoreStatus('error','No user logged in.'); return; }
   var btn=document.getElementById('restore-confirm-btn');
   btn.disabled=true;
   btn.textContent='Fetching from Sheet…';
-  setRestoreStatus('info','Pulling "'+targetUser+'" entries from the Sheet…');
+  setRestoreStatus('info','Pulling your entries from the Sheet…');
 
   fetch(SHEET_BACKUP_URL,{
     method:'POST',
@@ -2919,15 +2898,14 @@ function doRestoreFromSheet(){
     if(resp.status!=='ok') throw new Error(resp.message||'Backend returned an error.');
     var serverEntries=(resp.result&&resp.result.entries)||[];
     if(!serverEntries.length){
-      setRestoreStatus('error','No backed-up entries found for "'+targetUser+'" in the Sheet. Check the name matches exactly what was used when logging entries.');
+      setRestoreStatus('error','No backed-up entries found for "'+targetUser+'" in the Sheet. Make sure the name matches exactly what was used when logging.');
       btn.disabled=false;
-      btn.textContent='♻️ Restore Entries';
+      btn.textContent='♻️ Restore My Entries';
       return;
     }
     mergeRestoredEntries(serverEntries, targetUser);
   })
   .catch(function(err){
-    // Network error or old backend — fall back to CSV upload
     setRestoreStatus('info','Could not reach the server ('+err.message+'). Upload the exported Sheet CSV instead.');
     btn.disabled=false;
     btn.textContent='📂 Upload CSV Instead';
