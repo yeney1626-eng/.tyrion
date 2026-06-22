@@ -1183,8 +1183,16 @@ function migrateEntry(e){
   IVS.forEach(iv=>{
     var d=e.iv&&e.iv[iv];
     if(!d) return;
+    // Legacy field rename: total→totalMin, offline→offlineMin
     if(d.totalMin===undefined && d.total!==undefined){ d.totalMin=d.total; d.offlineMin=d.offline||0; }
-    if(d.totalS===undefined){ d.totalS=Math.round((d.totalMin||0)*60); d.offlineS=Math.round((d.offlineMin||0)*60); }
+    // Ensure seconds fields exist and are in sync with minute fields
+    if(d.totalS===undefined) d.totalS=Math.round((d.totalMin||0)*60);
+    // Always re-derive offlineS from offlineMin if offlineMin is set — this
+    // ensures entries restored from the Sheet (where only offlineMin comes
+    // back from the backend) have their offlineS correctly populated before
+    // calcEntry uses it in AHT/prodS calculations.
+    if(d.offlineMin!==undefined) d.offlineS=Math.round((d.offlineMin||0)*60);
+    else if(d.offlineS===undefined) d.offlineS=0;
   });
   return calcEntry(e);
 }
@@ -2928,7 +2936,10 @@ function mergeRestoredEntries(serverEntries, targetUser){
   serverEntries.forEach(function(e){
     if(!e||!e.date){ return; }
     if(existingDates[e.date]){ skipped++; return; }
-    var merged=calcEntry(Object.assign({},e,{id:e.id||Date.now()+Math.random()}));
+    // migrateEntry ensures offlineS is derived from offlineMin before calcEntry
+    // runs — critical for entries restored from the Sheet where only offlineMin
+    // is set (offlineS would otherwise default to 0 and distort AHT).
+    var merged=migrateEntry(Object.assign({},e,{id:e.id||Date.now()+Math.random()}));
     S.entries.push(merged);
     existingDates[e.date]=true;
     added++;
