@@ -954,14 +954,17 @@ function entryToBackupRow(entry){
   var ivCount = IVS.length;
   var ivJC = [];
   for(var i=0;i<ivCount;i++) ivJC.push(cellText(2+i));
-  // Build offline summary: prefer stored preset labels; fall back to minutes if none saved
+  // Build offline summary with interval name prefix so restore can map back
+  // exactly. Format: "1st Break:100.0min | EOS:105.0min"
+  // Old format (no prefix) is still readable by humans in the Sheet.
   var offlineParts = [];
   IVS.forEach(function(iv){
     var d = (entry.iv && entry.iv[iv]) || {};
     var oMin = d.offlineMin !== undefined ? d.offlineMin : parseFloat(secToMin(d.offlineS || 0));
     if(oMin > 0){
       var labels = d.offlineLabels && d.offlineLabels.length ? d.offlineLabels : null;
-      offlineParts.push(labels ? labels.join(' + ') : oMin.toFixed(1) + 'min');
+      var detail = labels ? labels.join(' + ') : oMin.toFixed(1) + 'min';
+      offlineParts.push(iv + ':' + detail);
     }
   });
   return {
@@ -974,7 +977,7 @@ function entryToBackupRow(entry){
     avgAHTsec: cellText(4+ivCount),
     target: cellText(5+ivCount),
     allowance: cellText(6+ivCount),
-    status: cellText(7+ivCount).replace(/[^\x00-\x7F]/g,'').trim(), // strip emoji/badges, keep "Met"/"Not Met" text
+    status: cellText(7+ivCount).replace(/[^\x00-\x7F]/g,'').trim(),
     offlines: offlineParts.join(' | '),
     locked: !!entry.locked
   };
