@@ -963,7 +963,7 @@ function entryToBackupRow(entry){
     var oMin = d.offlineMin !== undefined ? d.offlineMin : parseFloat(secToMin(d.offlineS || 0));
     if(oMin > 0){
       var labels = d.offlineLabels && d.offlineLabels.length ? d.offlineLabels : null;
-      var detail = labels ? labels.join(' + ') : oMin.toFixed(1) + 'min';
+      var detail = labels ? labels.join(' + ') + ' — ' + oMin.toFixed(1) + 'min' : oMin.toFixed(1) + 'min';
       offlineParts.push(iv + ':' + detail);
     }
   });
@@ -2953,7 +2953,7 @@ function mergeRestoredEntries(serverEntries, targetUser){
   }
   btn.textContent='✓ Done';
   btn.disabled=false;
-  btn.onclick=doRestoreFromSheet;
+  btn.onclick=closeRestoreModal;
 
   if(document.getElementById('tab-entries').classList.contains('active')){
     buildYearFilter(); renderEntries();
