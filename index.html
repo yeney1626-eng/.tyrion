@@ -953,6 +953,7 @@ function entryToBackupRow(entry){
       ivJC: ['—','—','—','—'],
       totalJC: '—', prodS: '—', avgAHTsec: '—', target: '—', allowance: '—',
       status: 'Rest Day',
+      leaveType: entry.leaveType || 'none',
       locked: !!entry.locked
     };
   }
@@ -983,6 +984,7 @@ function entryToBackupRow(entry){
     target: cellText(5+ivCount),
     allowance: cellText(6+ivCount),
     status: cellText(7+ivCount).replace(/[^\x00-\x7F]/g,'').trim(),
+    leaveType: entry.leaveType || 'none',
     offlines: offlineParts.join(' | '),
     locked: !!entry.locked
   };
