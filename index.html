@@ -231,6 +231,8 @@ tr.edit-row td{background:rgba(88,166,255,.06) !important}
 [data-theme="light"] .badge-pl{background:#E1F5FE;border-color:#81D4FA;color:#0277BD}
 .badge-ul{background:rgba(229,57,53,.15);color:#E53935;border:1px solid rgba(229,57,53,.35)}
 [data-theme="light"] .badge-ul{background:#FFEBEE;border-color:#EF9A9A;color:#C62828}
+.badge-vto{background:rgba(142,36,170,.15);color:#8E24AA;border:1px solid rgba(142,36,170,.35)}
+[data-theme="light"] .badge-vto{background:#F3E5F5;border-color:#CE93D8;color:#6A1B79}
 .badge-locked{background:rgba(88,166,255,.12);color:var(--accent);border:1px solid rgba(88,166,255,.35)}
 [data-theme="light"] .badge-locked{background:#dbeafe;border-color:#93c5fd;color:#1d4ed8}
 
@@ -255,6 +257,7 @@ tr.locked-row td{opacity:.75}
 .leave-btn:hover{background:var(--bg-el)}
 .leave-btn.active-pl{background:rgba(3,169,244,.15);border-color:#0288D1;color:#0288D1}
 .leave-btn.active-ul{background:rgba(229,57,53,.15);border-color:#E53935;color:#E53935}
+.leave-btn.active-vto{background:rgba(142,36,170,.15);border-color:#8E24AA;color:#8E24AA}
 .leave-btn.active-clear{background:var(--bg-el);border-color:var(--accent);color:var(--accent)}
 
 /* ── LANDSCAPE MOBILE ── */
@@ -520,6 +523,8 @@ tr.locked-row td{opacity:.75}
           <button class="leave-btn" id="lb-pl-half" onclick="setLeaveType('pl-half')">🏖️ PL – Half Day</button>
           <button class="leave-btn" id="lb-ul-full" onclick="setLeaveType('ul-full')">😈 UL – Full Day</button>
           <button class="leave-btn" id="lb-ul-half" onclick="setLeaveType('ul-half')">😈 UL – Half Day</button>
+          <button class="leave-btn" id="lb-vto-full" onclick="setLeaveType('vto-full')">🚪 VTO – Whole Day</button>
+          <button class="leave-btn" id="lb-vto-half" onclick="setLeaveType('vto-half')">🚪 VTO – Half Day</button>
         </div>
         <div id="leave-notice" style="display:none;font-size:11px;padding:6px 10px;border-radius:6px;margin-top:4px;margin-bottom:4px"></div>
       </div>
@@ -911,7 +916,7 @@ function getWeeklyAggregate(dateStr){
     return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
   })();
   var weekEntries=(S.entries||[]).filter(function(e){
-    return !e.isRestDay && e.leaveType!=='pl-full' && e.leaveType!=='ul-full' && e.date>=weekStart && e.date<=weekEnd;
+    return !e.isRestDay && e.leaveType!=='pl-full' && e.leaveType!=='ul-full' && e.leaveType!=='vto-full' && e.date>=weekStart && e.date<=weekEnd;
   });
   var totalJC=weekEntries.reduce(function(s,e){ return s+(e.totalJC||0); },0);
   var totalProdS=weekEntries.reduce(function(s,e){ return s+prodSForEntry(e); },0);
@@ -1113,7 +1118,7 @@ function backupAllEntries(){
     var weekStarts={};
     // Include ALL non-rest entries (locked or unlocked) so the WB Running Summary
     // reflects every saved day's contribution, matching what the app shows.
-    all.forEach(function(e){ if(!e.isRestDay && e.leaveType!=='pl-full' && e.leaveType!=='ul-full' && e.date) weekStarts[getWeekStart(e.date)]=true; });
+    all.forEach(function(e){ if(!e.isRestDay && e.leaveType!=='pl-full' && e.leaveType!=='ul-full' && e.leaveType!=='vto-full' && e.date) weekStarts[getWeekStart(e.date)]=true; });
     var weeks=Object.keys(weekStarts);
     if(!weeks.length){
       if(btn){ btn.disabled=false; btn.textContent='☁️ Backup All Entries'; }
@@ -1342,7 +1347,7 @@ function calcEntry(e){
   var offlineDeduction=Math.round(totalOfflineS/ahtTarget);
   // Leave deduction: full leave = skip day (tgt=0), half = half day target
   var lt=e.leaveType||'none';
-  var leaveFactor=(lt==='pl-full'||lt==='ul-full')?0:(lt==='pl-half'||lt==='ul-half')?0.5:1;
+  var leaveFactor=(lt==='pl-full'||lt==='ul-full'||lt==='vto-full')?0:(lt==='pl-half'||lt==='ul-half'||lt==='vto-half')?0.5:1;
   e.tgt=Math.max(0, Math.round((tgtShift() - offlineDeduction) * leaveFactor));
   e.allowance=totalJC-e.tgt;
   e.status=totalJC>=e.tgt?'Met':'Not Met';
@@ -1459,17 +1464,18 @@ function applyOfflinePresets(k){
 function setLeaveType(type){
   currentLeaveType=type;
   // Update button visuals
-  ['none','pl-full','pl-half','ul-full','ul-half'].forEach(function(t){
+  ['none','pl-full','pl-half','ul-full','ul-half','vto-full','vto-half'].forEach(function(t){
     var btn=document.getElementById('lb-'+t); if(!btn) return;
     btn.className='leave-btn';
     if(t===type){
       if(t==='none') btn.classList.add('active-clear');
       else if(t.startsWith('pl')) btn.classList.add('active-pl');
-      else btn.classList.add('active-ul');
+      else if(t.startsWith('ul')) btn.classList.add('active-ul');
+      else btn.classList.add('active-vto');
     }
   });
   // ── Half-day leave: rename intervals and block 2nd half of shift ──
-  var isHalfLeave = (type==='pl-half'||type==='ul-half');
+  var isHalfLeave = (type==='pl-half'||type==='ul-half'||type==='vto-half');
   // Rename titles: '1st Break' → 'Break', 'Lunch' → 'EOS' for half day
   var ivRenames = {'1st_Break': isHalfLeave?'Break':'1st Break', 'Lunch': isHalfLeave?'EOS':'Lunch'};
   Object.keys(ivRenames).forEach(function(k){
@@ -1511,12 +1517,12 @@ function setLeaveType(type){
   if(type==='none'){
     notice.style.display='none';
   } else {
-    var isPL=type.startsWith('pl');
-    var icon=isPL?'🏖️':'😈';
-    var label=isPL?'Planned Leave':'Unplanned Leave';
-    var color=isPL?'#0288D1':'#E53935';
-    var bg=isPL?'rgba(3,169,244,.1)':'rgba(229,57,53,.1)';
-    var border=isPL?'rgba(3,169,244,.4)':'rgba(229,57,53,.4)';
+    var isPL=type.startsWith('pl'), isVTO=type.startsWith('vto');
+    var icon=isPL?'🏖️':isVTO?'🚪':'😈';
+    var label=isPL?'Planned Leave':isVTO?'VTO':'Unplanned Leave';
+    var color=isPL?'#0288D1':isVTO?'#8E24AA':'#E53935';
+    var bg=isPL?'rgba(3,169,244,.1)':isVTO?'rgba(142,36,170,.1)':'rgba(229,57,53,.1)';
+    var border=isPL?'rgba(3,169,244,.4)':isVTO?'rgba(142,36,170,.4)':'rgba(229,57,53,.4)';
     var deduct=isHalfLeave?0.5:1;
     notice.style.display='block';
     notice.style.background=bg; notice.style.border='1px solid '+border; notice.style.color=color;
@@ -1525,8 +1531,8 @@ function setLeaveType(type){
   updateJCPreview();
 }
 function getLeaveDeduct(){
-  if(currentLeaveType==='pl-full'||currentLeaveType==='ul-full') return 1;
-  if(currentLeaveType==='pl-half'||currentLeaveType==='ul-half') return 0.5;
+  if(currentLeaveType==='pl-full'||currentLeaveType==='ul-full'||currentLeaveType==='vto-full') return 1;
+  if(currentLeaveType==='pl-half'||currentLeaveType==='ul-half'||currentLeaveType==='vto-half') return 0.5;
   return 0;
 }
 function getLeaveLabel(type){
@@ -1535,6 +1541,8 @@ function getLeaveLabel(type){
   if(type==='pl-half') return '🏖️ PL – Half';
   if(type==='ul-full') return '😈 UL – Full';
   if(type==='ul-half') return '😈 UL – Half';
+  if(type==='vto-full') return '🚪 VTO – Full';
+  if(type==='vto-half') return '🚪 VTO – Half';
   return 'Work';
 }
 function clearForm(){
@@ -1577,11 +1585,11 @@ function updateJCPreview(){
   var date0=(document.getElementById('inp-date')||{}).value||today();
   var savedRestEntry=S.entries.find(function(e){ return e.date===date0 && e.isRestDay; });
   var savedFullLeaveEntry=S.entries.find(function(e){
-    return e.date===date0 && !e.isRestDay && (e.leaveType==='pl-full'||e.leaveType==='ul-full');
+    return e.date===date0 && !e.isRestDay && (e.leaveType==='pl-full'||e.leaveType==='ul-full'||e.leaveType==='vto-full');
   });
   var isRestDay = isRestDayChecked() || !!savedRestEntry;
   var isFullLeaveDay = !isRestDay && (
-    currentLeaveType==='pl-full' || currentLeaveType==='ul-full' || !!savedFullLeaveEntry
+    currentLeaveType==='pl-full'||currentLeaveType==='ul-full'||currentLeaveType==='vto-full' || !!savedFullLeaveEntry
   );
   if(isRestDay || isFullLeaveDay){
     var rbar=document.getElementById('running-aht-bar'); if(rbar) rbar.style.display='none';
@@ -1593,20 +1601,20 @@ function updateJCPreview(){
       _note='Enjoy the movies! No JC target today. 🍿';
     } else {
       var _lt=(savedFullLeaveEntry&&savedFullLeaveEntry.leaveType)||currentLeaveType;
-      var _isPL=_lt==='pl-full';
-      _icon=_isPL?'🏖️':'🐈‍⬛';
-      _label=_isPL?'Planned Leave (Full Day)':'Unplanned Leave (Full Day)';
-      _accent=_isPL?'#0288D1':'#E53935';
-      _border=_isPL?'rgba(3,169,244,.45)':'rgba(229,57,53,.45)';
-      _bg=_isPL?'rgba(3,169,244,.07)':'rgba(229,57,53,.07)';
+      var _isPL=_lt==='pl-full', _isVTO=_lt==='vto-full';
+      _icon=_isPL?'🏖️':_isVTO?'🚪':'🐈‍⬛';
+      _label=_isPL?'Planned Leave (Full Day)':_isVTO?'VTO (Full Day)':'Unplanned Leave (Full Day)';
+      _accent=_isPL?'#0288D1':_isVTO?'#8E24AA':'#E53935';
+      _border=_isPL?'rgba(3,169,244,.45)':_isVTO?'rgba(142,36,170,.45)':'rgba(229,57,53,.45)';
+      _bg=_isPL?'rgba(3,169,244,.07)':_isVTO?'rgba(142,36,170,.07)':'rgba(229,57,53,.07)';
       // Compute weekly context for leave card
       var _wb=wb;
       var _wbSaved=S.entries.filter(function(e){return e.wb===_wb;});
       var _wbUpTo=_wbSaved.filter(function(e){return e.date<=date0;});
       var _leaveDed=_wbUpTo.filter(function(e){return !e.isRestDay;}).reduce(function(s,e){
         var lt=e.leaveType||'none';
-        if(lt==='pl-full'||lt==='ul-full') return s+1;
-        if(lt==='pl-half'||lt==='ul-half') return s+0.5;
+        if(lt==='pl-full'||lt==='ul-full'||lt==='vto-full') return s+1;
+        if(lt==='pl-half'||lt==='ul-half'||lt==='vto-half') return s+0.5;
         return s;
       },0);
       if(!savedFullLeaveEntry) _leaveDed+=1; // live form, not yet saved
@@ -1669,8 +1677,8 @@ function updateJCPreview(){
   var todayJCNeeded=Math.max(0, dailyTgtBase - todayOfflineDeduction);
   // Apply leave factor to today target
   var todayLeaveFactor=savedTodayEntry?(
-    (savedTodayEntry.leaveType==='pl-full'||savedTodayEntry.leaveType==='ul-full')?0:
-    (savedTodayEntry.leaveType==='pl-half'||savedTodayEntry.leaveType==='ul-half')?0.5:1
+    (savedTodayEntry.leaveType==='pl-full'||savedTodayEntry.leaveType==='ul-full'||savedTodayEntry.leaveType==='vto-full')?0:
+    (savedTodayEntry.leaveType==='pl-half'||savedTodayEntry.leaveType==='ul-half'||savedTodayEntry.leaveType==='vto-half')?0.5:1
   ):( 1 - getLeaveDeduct() === 0 ? 0 : getLeaveDeduct()===0.5 ? 0.5 : 1 );
   todayJCNeeded=Math.max(0,Math.round(todayJCNeeded*todayLeaveFactor));
   var wbSaved=S.entries.filter(function(e){return e.wb===wb;});
@@ -1681,7 +1689,7 @@ function updateJCPreview(){
   // ── Weekly target: always 5 work days × daily base MINUS offline AND leave deductions ──
   // Use full WB saved (all days) for target calc so target doesn't shrink retroactively
   // Exclude rest days and full-leave days from offline/JC aggregations
-  function isWorkDay(e){ return !e.isRestDay && e.leaveType!=='pl-full' && e.leaveType!=='ul-full'; }
+  function isWorkDay(e){ return !e.isRestDay && e.leaveType!=='pl-full' && e.leaveType!=='ul-full' && e.leaveType!=='vto-full'; }
   var savedOfflineS=wbSavedUpTo.filter(isWorkDay).reduce(function(s,e){
     var eo=0; IVS.forEach(function(iv){ eo+=(e.iv&&e.iv[iv]?e.iv[iv].offlineS||0:0); }); return s+eo;
   },0);
@@ -1692,8 +1700,8 @@ function updateJCPreview(){
   // viewing any prior day (e.g. Thursday = last effective workday).
   var leaveDayDeduct=wbSaved.filter(function(e){return !e.isRestDay;}).reduce(function(s,e){
     var lt=e.leaveType||'none';
-    if(lt==='pl-full'||lt==='ul-full') return s+1;
-    if(lt==='pl-half'||lt==='ul-half') return s+0.5;
+    if(lt==='pl-full'||lt==='ul-full'||lt==='vto-full') return s+1;
+    if(lt==='pl-half'||lt==='ul-half'||lt==='vto-half') return s+0.5;
     return s;
   },0);
   // Only add live-form leave deduction when today has no saved entry yet
@@ -1714,10 +1722,10 @@ function updateJCPreview(){
   var wbEntryForCount=WBS.slice().reverse().find(function(w){ return dateToUTCMidnight(w.date)<=chosenMs; });
   // Dates that are fully off (rest day OR full-day PL/UL) don't count as work days
   var offDayDates={};
-  wbSaved.filter(function(e){ return e.date && (e.isRestDay||(e.leaveType==='pl-full'||e.leaveType==='ul-full')); })
+  wbSaved.filter(function(e){ return e.date && (e.isRestDay||(e.leaveType==='pl-full'||e.leaveType==='ul-full'||e.leaveType==='vto-full')); })
          .forEach(function(e){ offDayDates[e.date]=true; });
   // Also treat today as off if live form is full-day leave (not yet saved)
-  if(!savedTodayEntry && (currentLeaveType==='pl-full'||currentLeaveType==='ul-full')) offDayDates[date]=true;
+  if(!savedTodayEntry && (currentLeaveType==='pl-full'||currentLeaveType==='ul-full'||currentLeaveType==='vto-full')) offDayDates[date]=true;
 
   var daysLeft=5, dayNum=1;
   var wbSatMs=0, wbFriMs=0;
@@ -1744,7 +1752,7 @@ function updateJCPreview(){
   // then subtract ALL offline deductions (prior days + today) before dividing by days left.
   var stableWeeklyTgt=Math.max(0, Math.round(dailyTgtBase*effectiveDays));
   var jcDoneBeforeToday=wbSavedUpTo.filter(function(e){
-    return !e.isRestDay && e.leaveType!=='pl-full' && e.leaveType!=='ul-full' && e.date<date;
+    return !e.isRestDay && e.leaveType!=='pl-full' && e.leaveType!=='ul-full' && e.leaveType!=='vto-full' && e.date<date;
   }).reduce(function(s,e){ return s+(e.totalJC||0); },0);
   var wbJCLeftAtStartOfToday=Math.max(0, stableWeeklyTgt-jcDoneBeforeToday);
   // Deduct ALL offline (all saved prior days + today's live offline) from remaining JC
@@ -1753,7 +1761,7 @@ function updateJCPreview(){
   var jcPerDayNeeded=daysLeft>0?Math.ceil(wbJCLeftAdjusted/daysLeft):0;
   // Halve per-day needed if: VTO >= 60 min OR half-day PL/UL
   var _lt=savedTodayEntry?(savedTodayEntry.leaveType||'none'):currentLeaveType;
-  var _isHalfLeave=(_lt==='pl-half'||_lt==='ul-half');
+  var _isHalfLeave=(_lt==='pl-half'||_lt==='ul-half'||_lt==='vto-half');
   var _vtoMins=savedTodayEntry
     ? IVS.reduce(function(s,iv){ var d=(savedTodayEntry.iv&&savedTodayEntry.iv[iv])||{}; return s+(d.offlineMin||d.offlineS/60||0); },0)
     : totalOfflineMin;
@@ -1787,7 +1795,7 @@ function updateJCPreview(){
   // Recompute prodS per-interval (all clocked-in time, offline excluded)
   // Running AHT: exclude rest days AND full-leave days (PL/UL full contribute no real work time)
   var wbWorkEntries=wbSavedUpTo.filter(function(e){
-    return !e.isRestDay && e.leaveType!=='pl-full' && e.leaveType!=='ul-full';
+    return !e.isRestDay && e.leaveType!=='pl-full' && e.leaveType!=='ul-full' && e.leaveType!=='vto-full';
   });
   // AHT rule: include all intervals up to the LAST interval with JC > 0.
   // Passed breaks before the last JC interval are included (they were worked through).
@@ -1899,6 +1907,9 @@ function updateJCPreview(){
   } else if(activeLT==='ul-full'||activeLT==='ul-half'){
     var ulLabel=activeLT==='ul-full'?'UL – Full Day':'UL – Half Day';
     noteHtml+='<div style="font-size:11px;color:#E53935;margin-bottom:3px">🐈‍⬛ <strong>'+ulLabel+'</strong> — weekly target reduced by '+(activeLT==='ul-full'?'1 full day':'half a day')+'.</div>';
+  } else if(activeLT==='vto-full'||activeLT==='vto-half'){
+    var vtoLabel=activeLT==='vto-full'?'VTO – Full Day':'VTO – Half Day';
+    noteHtml+='<div style="font-size:11px;color:#8E24AA;margin-bottom:3px">🚪 <strong>'+vtoLabel+'</strong> — weekly target reduced by '+(activeLT==='vto-full'?'1 full day':'half a day')+'.</div>';
   }
   if(hasOffline) noteHtml+='<div style="font-size:11px;color:'+C.yellow+';margin-bottom:3px">⏸ '+totalOfflineMin.toFixed(1)+' min offline today → −'+todayOfflineDeduction+' JC from today · −'+totalOfflineDeduction+' JC from weekly target.</div>';
   if(restDaysWB>0) noteHtml+='<div style="font-size:11px;color:'+C.yellow+';margin-bottom:3px">🌙 '+restDaysWB+' rest day'+(restDaysWB>1?'s':'')+' logged · weekly target: '+weeklyTgt+' JC (5d countdown).</div>';
@@ -2098,7 +2109,9 @@ function renderLockedBanner(panel, e, dateVal){
   var leaveBadge=lt==='pl-full'?'<span class="badge badge-pl">🏖️ PL Full</span>':
     lt==='pl-half'?'<span class="badge badge-pl">🏖️ PL Half</span>':
     lt==='ul-full'?'<span class="badge badge-ul">😈 UL Full</span>':
-    lt==='ul-half'?'<span class="badge badge-ul">😈 UL Half</span>':'';
+    lt==='ul-half'?'<span class="badge badge-ul">😈 UL Half</span>':
+    lt==='vto-full'?'<span class="badge badge-vto">🚪 VTO Full</span>':
+    lt==='vto-half'?'<span class="badge badge-vto">🚪 VTO Half</span>':'';
 
   var ivChips=IVS.map(function(iv){
     var d=(e.iv&&e.iv[iv])||{jc:0};
@@ -2183,6 +2196,8 @@ function renderDateSummary(panel, e, dateVal){
   else if(lt==='pl-half') leaveBadgeHtml='<span class="badge badge-pl">🏖️ PL – Half Day</span>';
   else if(lt==='ul-full') leaveBadgeHtml='<span class="badge badge-ul">😈 UL – Full Day</span>';
   else if(lt==='ul-half') leaveBadgeHtml='<span class="badge badge-ul">😈 UL – Half Day</span>';
+  else if(lt==='vto-full') leaveBadgeHtml='<span class="badge badge-vto">🚪 VTO – Full Day</span>';
+  else if(lt==='vto-half') leaveBadgeHtml='<span class="badge badge-vto">🚪 VTO – Half Day</span>';
 
   var ivChips=IVS.map(function(iv){
     var d=(e.iv&&e.iv[iv])||{jc:0};
@@ -2249,7 +2264,7 @@ function addEntry(skipBackup){
   }
 
   var existingIdx=S.entries.findIndex(function(e){ return e.date===date; });
-  var isFullLeave = !isRest && (currentLeaveType==='pl-full' || currentLeaveType==='ul-full');
+  var isFullLeave = !isRest && (currentLeaveType==='pl-full'||currentLeaveType==='ul-full'||currentLeaveType==='vto-full');
   // Capture current jcPerDayNeeded from the preview card before saving
   var _pdnEl=document.getElementById('_jc-per-day-needed');
   var _pdn=_pdnEl?parseInt(_pdnEl.value)||0:0;
@@ -2302,8 +2317,8 @@ function saveAndLock(){
   // PL/UL full and rest days are handled separately — addEntry handles PL/UL full
   // (auto-locks + shiftDate inside addEntry), so don't double-call here.
   var existingRest=S.entries.find(function(e){return e.date===date && e.isRestDay;});
-  var isLiveFullLeave=(currentLeaveType==='pl-full'||currentLeaveType==='ul-full');
-  var existingFullLeave=S.entries.find(function(e){return e.date===date && (e.leaveType==='pl-full'||e.leaveType==='ul-full');});
+  var isLiveFullLeave=(currentLeaveType==='pl-full'||currentLeaveType==='ul-full'||currentLeaveType==='vto-full');
+  var existingFullLeave=S.entries.find(function(e){return e.date===date && (e.leaveType==='pl-full'||e.leaveType==='ul-full'||e.leaveType==='vto-full');});
   if(isLiveFullLeave || existingFullLeave){
     // addEntry handles lock + advance for full leave
     if(!existingFullLeave) addEntry();
@@ -2456,6 +2471,8 @@ function buildViewRow(e){
   else if(lt==='pl-half') leaveBadge='<span class="badge badge-pl" style="margin-left:4px">🏖️ PL Half</span>';
   else if(lt==='ul-full') leaveBadge='<span class="badge badge-ul" style="margin-left:4px">😈 UL Full</span>';
   else if(lt==='ul-half') leaveBadge='<span class="badge badge-ul" style="margin-left:4px">😈 UL Half</span>';
+  else if(lt==='vto-full') leaveBadge='<span class="badge badge-vto" style="margin-left:4px">🚪 VTO Full</span>';
+  else if(lt==='vto-half') leaveBadge='<span class="badge badge-vto" style="margin-left:4px">🚪 VTO Half</span>';
   var isLocked=!!e.locked;
   var lockBadge=isLocked?'<span class="badge badge-locked" style="margin-left:4px">🔒</span>':'';
   var actionBtns=isLocked
@@ -2594,7 +2611,7 @@ function exportXLSX(){
       data.push([e.wb,e.date,'Rest Day','','','','','','','','','','','','','','','','','','Rest Day','']);
     } else {
       var lt=e.leaveType||'none';
-      var leaveLabel=lt==='pl-full'?'PL – Full Day':lt==='pl-half'?'PL – Half Day':lt==='ul-full'?'UL – Full Day':lt==='ul-half'?'UL – Half Day':'';
+      var leaveLabel=lt==='pl-full'?'PL – Full Day':lt==='pl-half'?'PL – Half Day':lt==='ul-full'?'UL – Full Day':lt==='ul-half'?'UL – Half Day':lt==='vto-full'?'VTO – Full Day':lt==='vto-half'?'VTO – Half Day':'';
       var typeLabel=lt!=='none'&&lt?leaveLabel:'Work';
       var row=[e.wb, e.date, typeLabel];
       IVS.forEach(function(iv){
@@ -2635,6 +2652,7 @@ function exportXLSX(){
   var met=workRows.filter(function(e){return e.status==='Met';}).length;
   var plDays=rows.filter(function(e){var lt=e.leaveType||'none'; return lt==='pl-full'?1:lt==='pl-half'?0.5:0;}).reduce(function(s,e){var lt=e.leaveType||'none'; return s+(lt==='pl-full'?1:lt==='pl-half'?0.5:0);},0);
   var ulDays=rows.filter(function(e){var lt=e.leaveType||'none'; return lt==='ul-full'||lt==='ul-half';}).reduce(function(s,e){var lt=e.leaveType||'none'; return s+(lt==='ul-full'?1:lt==='ul-half'?0.5:0);},0);
+  var vtoDays=rows.filter(function(e){var lt=e.leaveType||'none'; return lt==='vto-full'||lt==='vto-half';}).reduce(function(s,e){var lt=e.leaveType||'none'; return s+(lt==='vto-full'?1:lt==='vto-half'?0.5:0);},0);
   var sumData=[
     ['TeamRoanne Personal AHT Tracker — Summary'],
     ['Name', S.name||''],
@@ -2648,6 +2666,7 @@ function exportXLSX(){
     [''],
     ['PL Days Used', plDays],
     ['UL Days Used', ulDays],
+    ['VTO Days Used', vtoDays],
     ['Rest Days', rows.filter(function(e){return e.isRestDay;}).length],
     [''],
     ['Exported', new Date().toISOString().slice(0,19).replace('T',' ')]
@@ -3085,7 +3104,9 @@ function openEditModal(id){
     {val:'pl-full',label:'🏖️ PL – Full Day'},
     {val:'pl-half',label:'🏖️ PL – Half Day'},
     {val:'ul-full',label:'😈 UL – Full Day'},
-    {val:'ul-half',label:'😈 UL – Half Day'}
+    {val:'ul-half',label:'😈 UL – Half Day'},
+    {val:'vto-full',label:'🚪 VTO – Whole Day'},
+    {val:'vto-half',label:'🚪 VTO – Half Day'}
   ].map(function(o){return '<option value="'+o.val+'"'+(o.val===curLT?' selected':'')+'>'+o.label+'</option>';}).join('');
   var html=
     '<div class="form-row" style="margin-bottom:12px">'+
