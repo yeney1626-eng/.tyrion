@@ -656,6 +656,19 @@ tr.locked-row td{opacity:.75}
       </div>
 
       <div class="settings-panel">
+        <h3>🎙️ Send Voice Message to Manager</h3>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Record a quick voice note — your manager gets it instantly.</p>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn" id="uv-rec-btn" onclick="toggleUserVoiceRecording()" style="background:linear-gradient(135deg,#7C3AED,#A855F7);color:#fff;border:none">🔴 Record</button>
+          <span id="uv-rec-timer" style="display:none;font-weight:700;color:#E53935;font-size:12px">00:00</span>
+          <audio id="uv-preview" controls style="display:none;height:30px;max-width:200px"></audio>
+          <button class="btn" id="uv-send-btn" style="display:none;background:linear-gradient(135deg,#0288D1,#26C6DA);color:#fff;border:none" onclick="sendUserVoiceMessage()">📤 Send to Manager</button>
+          <button class="btn" id="uv-discard-btn" style="display:none" onclick="discardUserVoiceRecording()">🗑️</button>
+        </div>
+        <div id="uv-status" style="font-size:11px;color:var(--text2);margin-top:8px"></div>
+      </div>
+
+      <div class="settings-panel">
         <h3>🗑 Data</h3>
         <p style="font-size:12px;color:var(--text2);margin-bottom:12px">All data is stored in your browser's localStorage. Clearing it will delete all entries.</p>
         <button class="btn btn-danger" onclick="clearAllData()">Clear All Data</button>
@@ -883,19 +896,19 @@ var SHEET_BACKUP_URL = 'https://script.google.com/macros/s/AKfycbxDa_g78fDtmSTx0
 // 5. Paste the SAME config into BOTH index_user.html and index_manager.html below
 // 6. Authentication > Sign-in method > enable "Anonymous"
 var FIREBASE_CONFIG = {
-  apiKey: "PASTE_ME",
-  authDomain: "PASTE_ME.firebaseapp.com",
-  databaseURL: "https://PASTE_ME-default-rtdb.firebaseio.com",
-  projectId: "PASTE_ME",
-  storageBucket: "PASTE_ME.appspot.com",
-  messagingSenderId: "PASTE_ME",
-  appId: "PASTE_ME"
+  apiKey: "AIzaSyAJIRXe1P5KqdBcdxMbXmSN0etoqE3-4w4",
+  authDomain: "team-roanne-tracker.firebaseapp.com",
+  databaseURL: "https://team-roanne-tracker-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "team-roanne-tracker",
+  storageBucket: "team-roanne-tracker.firebasestorage.app",
+  messagingSenderId: "312831685767",
+  appId: "1:312831685767:web:316abe1304ca90ebe67422"
 };
 var fbDB=null, fbReady=false, _fbInitCbs=[];
 function initFirebase(cb){
   if(fbReady){ cb&&cb(); return; }
-  if(!FIREBASE_CONFIG.apiKey || FIREBASE_CONFIG.apiKey==='PASTE_ME'){
-    console.warn('Firebase not configured — voice messaging is disabled until FIREBASE_CONFIG is filled in.');
+  if(!FIREBASE_CONFIG.apiKey || FIREBASE_CONFIG.apiKey==='PASTE_ME' || !FIREBASE_CONFIG.databaseURL || FIREBASE_CONFIG.databaseURL.indexOf('PASTE_')===0){
+    console.warn('Firebase not configured — voice messaging is disabled until FIREBASE_CONFIG (esp. databaseURL) is filled in.');
     return;
   }
   if(cb) _fbInitCbs.push(cb);
@@ -1489,6 +1502,94 @@ function initVoiceMessaging(){
     });
   });
 }
+// ══ VOICE MESSAGING (User → Manager, realtime via Firebase) ══
+var uvMediaRecorder=null, uvChunks=[], uvBlob=null, uvStream=null, uvTimerInt=null, uvRecStart=0;
+
+function toggleUserVoiceRecording(){
+  if(uvMediaRecorder && uvMediaRecorder.state==='recording'){
+    uvMediaRecorder.stop();
+    return;
+  }
+  var statusEl=document.getElementById('uv-status'); statusEl.textContent='';
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    statusEl.textContent="Microphone recording isn't supported in this browser.";
+    return;
+  }
+  navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+    uvStream=stream;
+    uvChunks=[];
+    var mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' :
+                   MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '';
+    uvMediaRecorder = mimeType ? new MediaRecorder(stream,{mimeType:mimeType}) : new MediaRecorder(stream);
+    uvMediaRecorder.ondataavailable=function(e){ if(e.data && e.data.size>0) uvChunks.push(e.data); };
+    uvMediaRecorder.onstop=function(){
+      uvBlob=new Blob(uvChunks, {type: uvMediaRecorder.mimeType || 'audio/webm'});
+      var url=URL.createObjectURL(uvBlob);
+      var prev=document.getElementById('uv-preview'); prev.src=url; prev.style.display='';
+      document.getElementById('uv-send-btn').style.display='';
+      document.getElementById('uv-discard-btn').style.display='';
+      document.getElementById('uv-rec-btn').textContent='🔴 Record';
+      document.getElementById('uv-rec-timer').style.display='none';
+      clearInterval(uvTimerInt);
+      uvStream.getTracks().forEach(function(t){t.stop();});
+    };
+    uvMediaRecorder.start();
+    uvRecStart=Date.now();
+    document.getElementById('uv-rec-btn').textContent='⏹ Stop';
+    document.getElementById('uv-rec-timer').style.display='';
+    document.getElementById('uv-preview').style.display='none';
+    document.getElementById('uv-send-btn').style.display='none';
+    document.getElementById('uv-discard-btn').style.display='none';
+    uvTimerInt=setInterval(function(){
+      var s=Math.floor((Date.now()-uvRecStart)/1000);
+      var mm=String(Math.floor(s/60)).padStart(2,'0'), ss=String(s%60).padStart(2,'0');
+      document.getElementById('uv-rec-timer').textContent=mm+':'+ss;
+      if(s>=120) uvMediaRecorder.stop(); // 2 min safety cap
+    },250);
+  }).catch(function(err){
+    statusEl.textContent='Mic permission denied or unavailable: '+err.message;
+  });
+}
+
+function discardUserVoiceRecording(){
+  uvBlob=null;
+  document.getElementById('uv-preview').style.display='none';
+  document.getElementById('uv-send-btn').style.display='none';
+  document.getElementById('uv-discard-btn').style.display='none';
+  document.getElementById('uv-status').textContent='';
+}
+
+function sendUserVoiceMessage(){
+  if(!uvBlob) return;
+  var statusEl=document.getElementById('uv-status');
+  var sendBtn=document.getElementById('uv-send-btn');
+  statusEl.textContent='Sending…'; sendBtn.disabled=true;
+  var reader=new FileReader();
+  reader.onload=function(){
+    initFirebase(function(){
+      var ref=fbDB.ref('voiceInbox/_manager');
+      ref.push({
+        from:S.name||'A user', audio:reader.result, ts:firebase.database.ServerValue.TIMESTAMP
+      }).then(function(){
+        statusEl.textContent='✓ Sent to Manager.';
+        sendBtn.disabled=false;
+        discardUserVoiceRecording();
+        var cutoff=Date.now()-24*60*60*1000;
+        ref.orderByChild('ts').endAt(cutoff).once('value').then(function(snap){
+          var updates={};
+          snap.forEach(function(child){ updates[child.key]=null; });
+          if(Object.keys(updates).length) ref.update(updates);
+        });
+        setTimeout(function(){ if(statusEl.textContent.indexOf('Sent')>-1||statusEl.textContent.indexOf('✓')>-1) statusEl.textContent=''; },5000);
+      }).catch(function(err){
+        statusEl.textContent='Send failed: '+err.message;
+        sendBtn.disabled=false;
+      });
+    });
+  };
+  reader.readAsDataURL(uvBlob);
+}
+
 function handleIncomingVoice(msg){
   if(!msg || !msg.audio) return;
   showVoiceToast(msg);
