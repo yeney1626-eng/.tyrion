@@ -1484,6 +1484,7 @@ function appInit(){
 // ══ VOICE MESSAGING (realtime, from Manager) ══
 function initVoiceMessaging(){
   if(!S.name) return;
+  requestVoiceNotifPermission();
   initFirebase(function(){
     var key=fbSafeKey(S.name);
     var presRef=fbDB.ref('presence/'+key);
@@ -1590,9 +1591,26 @@ function sendUserVoiceMessage(){
   reader.readAsDataURL(uvBlob);
 }
 
+function requestVoiceNotifPermission(){
+  if(!('Notification' in window)) return;
+  if(Notification.permission==='default'){
+    Notification.requestPermission();
+  }
+}
 function handleIncomingVoice(msg){
   if(!msg || !msg.audio) return;
   showVoiceToast(msg);
+  if(document.hidden) fireVoiceNotification(msg);
+}
+function fireVoiceNotification(msg){
+  if(!('Notification' in window) || Notification.permission!=='granted') return;
+  try{
+    var n=new Notification('🎙️ Voice message from '+(msg.from||'Manager'), {
+      body:'Tap to open TeamRoanne and listen.',
+      tag:'voice-msg', renotify:true, silent:false
+    });
+    n.onclick=function(){ window.focus(); n.close(); };
+  }catch(err){ console.warn('Notification failed:',err); }
 }
 function voiceEscHtml(s){
   return String(s==null?'':s).replace(/[&<>"']/g,function(c){
@@ -1615,6 +1633,8 @@ function showVoiceToast(msg){
   wrap.appendChild(el);
   var audio=new Audio(msg.audio);
   var subEl=document.getElementById(id+'-sub');
+  // Always attempt to play immediately, regardless of tab focus/visibility —
+  // only lack of any prior user interaction on the page blocks this.
   audio.play().catch(function(){
     if(subEl) subEl.textContent='🔊 Tap to play';
     el.style.cursor='pointer';
