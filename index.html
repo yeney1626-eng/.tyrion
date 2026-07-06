@@ -926,6 +926,8 @@ function initFirebase(cb){
 function fbSafeKey(n){ return String(n||'').replace(/[.#$\[\]\/]/g,'_'); }
 
 
+
+
 // Returns the entry with the most recent date across all years — i.e. the
 // entry that appears first/top in the Entries table regardless of which
 // year filter happens to be selected.
@@ -1597,20 +1599,49 @@ function requestVoiceNotifPermission(){
     Notification.requestPermission();
   }
 }
-function handleIncomingVoice(msg){
-  if(!msg || !msg.audio) return;
-  showVoiceToast(msg);
-  if(document.hidden) fireVoiceNotification(msg);
+var _voiceTitleFlashInt=null;
+var _voiceOrigTitle=null;
+function startVoiceTitleFlash(label){
+  if(!document.hidden) return; // only flash when they're not looking at this tab
+  if(_voiceTitleFlashInt) return; // already flashing
+  _voiceOrigTitle = document.title;
+  var on=false;
+  _voiceTitleFlashInt=setInterval(function(){
+    document.title = on ? _voiceOrigTitle : label;
+    on=!on;
+  }, 900);
+  document.addEventListener('visibilitychange', stopVoiceTitleFlashOnFocus);
 }
-function fireVoiceNotification(msg){
+function stopVoiceTitleFlashOnFocus(){
+  if(!document.hidden) stopVoiceTitleFlash();
+}
+function stopVoiceTitleFlash(){
+  if(_voiceTitleFlashInt){ clearInterval(_voiceTitleFlashInt); _voiceTitleFlashInt=null; }
+  if(_voiceOrigTitle){ document.title=_voiceOrigTitle; _voiceOrigTitle=null; }
+  document.removeEventListener('visibilitychange', stopVoiceTitleFlashOnFocus);
+}
+function buzzVoiceAlert(){
+  // Phone vibration — works while the page is loaded, no permissions needed.
+  if(navigator.vibrate){ navigator.vibrate([250,120,250,120,250]); }
+}
+function fireVoiceNotification(msg, fallbackLabel){
   if(!('Notification' in window) || Notification.permission!=='granted') return;
   try{
-    var n=new Notification('🎙️ Voice message from '+(msg.from||'Manager'), {
-      body:'Tap to open TeamRoanne and listen.',
+    var n=new Notification('🎙️ Voice message from '+(msg.from||fallbackLabel), {
+      body:'Tap to open and listen.',
       tag:'voice-msg', renotify:true, silent:false
     });
     n.onclick=function(){ window.focus(); n.close(); };
   }catch(err){ console.warn('Notification failed:',err); }
+}
+function handleIncomingVoice(msg){
+  if(!msg || !msg.audio) return;
+  showVoiceToast(msg);
+  buzzVoiceAlert();
+  if(document.hidden){
+    fireVoiceNotification(msg,'Manager');
+    startVoiceTitleFlash('🎙️ New voice message!');
+  }
 }
 function voiceEscHtml(s){
   return String(s==null?'':s).replace(/[&<>"']/g,function(c){
