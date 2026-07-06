@@ -925,6 +925,26 @@ function initFirebase(cb){
 }
 function fbSafeKey(n){ return String(n||'').replace(/[.#$\[\]\/]/g,'_'); }
 
+// iOS Safari quirk: after using the microphone (getUserMedia), Safari can keep
+// routing audio playback through the tiny earpiece speaker instead of the main
+// loudspeaker, because it doesn't fully release the "recording" audio session.
+// Briefly starting a Web Audio API context resets the session back to normal
+// playback routing. Cheap and harmless to call repeatedly.
+function unlockIOSAudioRoute(){
+  try{
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx) return;
+    var ctx = new Ctx();
+    var buffer = ctx.createBuffer(1, 1, 22050);
+    var source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    source.start(0);
+    setTimeout(function(){ try{ ctx.close(); }catch(e){} }, 500);
+  }catch(err){ /* non-fatal — just skip the workaround */ }
+}
+
+
 
 
 
@@ -1535,6 +1555,7 @@ function toggleUserVoiceRecording(){
       document.getElementById('uv-rec-timer').style.display='none';
       clearInterval(uvTimerInt);
       uvStream.getTracks().forEach(function(t){t.stop();});
+      unlockIOSAudioRoute();
     };
     uvMediaRecorder.start();
     uvRecStart=Date.now();
@@ -1662,7 +1683,9 @@ function showVoiceToast(msg){
     '</div>'+
     '<button class="voice-toast-close" onclick="event.stopPropagation();this.closest(\'.voice-toast\').remove()">✕</button>';
   wrap.appendChild(el);
+  unlockIOSAudioRoute();
   var audio=new Audio(msg.audio);
+  audio.volume=1;
   var subEl=document.getElementById(id+'-sub');
   // Always attempt to play immediately, regardless of tab focus/visibility —
   // only lack of any prior user interaction on the page blocks this.
